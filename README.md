@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Reklamacija na Život 🎭
 
-## Getting Started
+Anonimna chat aplikacija gde se možeš požaliti potpunom strancu — bez imena, bez osude, bez tragova.
 
-First, run the development server:
+## Kako radi
+
+1. Registruj se sa email-om i lozinkom (tvoj identitet je potpuno skriven od sagovornika)
+2. Klikni "Nađi sagovornika" da budeš spojen sa nasumičnim strancem
+3. Razgovaraj anonimno — dobijaš random pseudonim (npr. "Tihi Vulkan", "Mudri Pingvin")
+4. Kad završiš, poruke se brišu — nema tragova
+
+## Tech Stack
+
+- **Next.js 16** (App Router)
+- **Socket.io** (real-time WebSocket chat)
+- **NextAuth.js** (autentifikacija sa email/lozinka)
+- **PostgreSQL** + **Prisma ORM**
+- **Tailwind CSS** (dark tema)
+- **emoji-picker-react** (emoji podrška)
+
+## Pokretanje
+
+### Preduslov
+
+- Node.js 20+
+- PostgreSQL baza podataka
+
+### Instalacija
 
 ```bash
+# Kloniraj repo
+git clone https://github.com/your-username/reklamacija-na-zivot.git
+cd reklamacija-na-zivot
+
+# Instaliraj zavisnosti
+npm install
+
+# Kopiraj .env.example u .env i podesi DATABASE_URL i NEXTAUTH_SECRET
+cp .env.example .env
+
+# Pokreni migraciju baze
+npx prisma migrate dev
+
+# Generiši Prisma klijent
+npx prisma generate
+
+# Pokreni dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Aplikacija će biti dostupna na [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Testiranje chata
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Otvori dva različita browser taba (ili koristi incognito mod), registruj dva naloga, i klikni "Nađi sagovornika" na oba — bićeš spojen!
 
-## Learn More
+## Struktura projekta
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/           # Next.js App Router stranice
+│   ├── api/       # API rute (auth, register)
+│   ├── chat/      # Chat interfejs
+│   ├── dashboard/ # Početna stranica nakon logina
+│   ├── login/     # Login forma
+│   └── register/  # Registracija forma
+├── components/    # React komponente (Navbar, ChatWindow, ChatInput...)
+├── lib/           # Utility fajlovi (prisma, auth, pseudonimi)
+└── server/        # Socket.io server logika
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Licenca
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
