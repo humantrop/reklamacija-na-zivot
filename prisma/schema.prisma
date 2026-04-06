@@ -7,9 +7,23 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  role       Role     @default(USER)
+  totalChats Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model Stats {
+  id                String   @id @default("global")
+  totalChatsCreated Int      @default(0)
+  totalMessages     Int      @default(0)
+  updatedAt         DateTime @updatedAt
 }

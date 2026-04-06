@@ -7,23 +7,26 @@ export default function Navbar() {
   const { data: session } = useSession();
 
   return (
-    <nav className="border-b border-surface-light bg-surface/80 backdrop-blur-sm">
-      <div className="mx-auto max-w-5xl flex items-center justify-between px-6 py-4">
-        <Link href="/" className="text-xl font-bold text-accent">
-          reklamacija na život
+    <nav className="sticky top-0 z-50 border-b border-glass-border glass-card">
+      <div className="mx-auto max-w-5xl flex items-center justify-between px-6 py-3.5">
+        <Link href="/" className="flex items-center gap-2 group">
+          <span className="text-xl">📢</span>
+          <span className="text-lg font-bold tracking-tight gradient-text group-hover:opacity-80 transition-opacity">
+            reklamacija
+          </span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {session ? (
             <>
               <Link
                 href="/dashboard"
-                className="text-muted hover:text-foreground transition-colors"
+                className="text-sm text-muted hover:text-foreground transition-colors"
               >
                 Početna
               </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="rounded-lg bg-surface-light px-4 py-2 text-sm text-muted hover:text-foreground transition-colors"
+                className="glass-card rounded-lg px-4 py-1.5 text-sm text-muted hover:text-foreground transition-all hover:border-accent/30"
               >
                 Odjavi se
               </button>
@@ -32,13 +35,13 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="text-muted hover:text-foreground transition-colors"
+                className="text-sm text-muted hover:text-foreground transition-colors"
               >
                 Prijava
               </Link>
               <Link
                 href="/register"
-                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/80 transition-colors"
+                className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
               >
                 Registracija
               </Link>

@@ -33,8 +33,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center px-6">
-      <div className="w-full max-w-md rounded-2xl bg-surface p-8">
+    <div className="relative flex flex-1 items-center justify-center px-6 overflow-hidden">
+      <div className="bg-orb w-72 h-72 bg-accent top-[10%] left-[5%]" />
+      <div className="bg-orb w-56 h-56 bg-accent-blue bottom-[10%] right-[10%]" />
+
+      <div className="relative z-10 w-full max-w-md glass-card rounded-2xl p-8">
         <h1 className="text-2xl font-bold text-center mb-2">Dobrodošao nazad</h1>
         <p className="text-muted text-center text-sm mb-8">
           Prijavi se i nastavi gde si stao
@@ -48,7 +51,7 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-muted mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-muted mb-1.5">
               Email
             </label>
             <input
@@ -57,13 +60,13 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-lg border border-surface-light bg-background px-4 py-3 text-foreground placeholder-muted/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full rounded-xl border border-surface-light bg-background/50 px-4 py-3 text-foreground placeholder-muted/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-colors"
               placeholder="tvoj@email.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-muted mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-muted mb-1.5">
               Lozinka
             </label>
             <input
@@ -72,7 +75,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-lg border border-surface-light bg-background px-4 py-3 text-foreground placeholder-muted/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full rounded-xl border border-surface-light bg-background/50 px-4 py-3 text-foreground placeholder-muted/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-colors"
               placeholder="••••••••"
             />
           </div>
@@ -80,7 +83,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:bg-accent/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="glow-button w-full rounded-xl bg-accent px-4 py-3 font-semibold text-white hover:bg-accent-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Prijavljivanje..." : "Prijavi se"}
           </button>
@@ -88,7 +91,7 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-muted">
           Nemaš nalog?{" "}
-          <Link href="/register" className="text-accent hover:underline">
+          <Link href="/register" className="text-accent hover:text-accent-blue transition-colors">
             Registruj se
           </Link>
         </p>

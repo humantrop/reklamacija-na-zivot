@@ -11,8 +11,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Protect dashboard and chat routes
-  if (!token && (pathname.startsWith("/dashboard") || pathname.startsWith("/chat"))) {
+  // Protect dashboard, chat, and admin routes
+  if (
+    !token &&
+    (pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/chat") ||
+      pathname.startsWith("/admin"))
+  ) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -20,5 +25,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/chat/:path*", "/login", "/register"],
+  matcher: ["/dashboard/:path*", "/chat/:path*", "/login", "/register", "/admin/:path*"],
 };

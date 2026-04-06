@@ -61,7 +61,6 @@ export default function ChatInput({
     inputRef.current?.focus();
   };
 
-  // Close emoji picker on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
@@ -73,7 +72,7 @@ export default function ChatInput({
   }, []);
 
   return (
-    <div className="border-t border-surface-light p-4 relative">
+    <div className="border-t border-glass-border p-4 relative glass-card">
       {showEmoji && (
         <div ref={emojiRef} className="absolute bottom-20 left-4 z-50">
           <EmojiPicker
@@ -90,7 +89,11 @@ export default function ChatInput({
       <div className="flex items-end gap-2 max-w-3xl mx-auto">
         <button
           onClick={() => setShowEmoji(!showEmoji)}
-          className="flex-shrink-0 rounded-lg bg-surface-light p-3 text-lg hover:bg-surface transition-colors"
+          className={`flex-shrink-0 rounded-xl p-3 text-lg transition-all ${
+            showEmoji
+              ? "bg-accent/20 border border-accent/30"
+              : "glass-card hover:border-accent/30"
+          }`}
           title="Emoji"
         >
           😊
@@ -103,14 +106,14 @@ export default function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder="Napiši poruku..."
           rows={1}
-          className="flex-1 resize-none rounded-lg border border-surface-light bg-surface px-4 py-3 text-foreground placeholder-muted/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent max-h-32"
+          className="flex-1 resize-none rounded-xl border border-surface-light bg-background/50 px-4 py-3 text-foreground placeholder-muted/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent max-h-32 transition-colors"
           style={{ minHeight: "48px" }}
         />
 
         <button
           onClick={handleSend}
           disabled={!message.trim()}
-          className="flex-shrink-0 rounded-lg bg-accent p-3 text-white hover:bg-accent/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-shrink-0 rounded-xl bg-gradient-to-br from-accent to-accent-hover p-3 text-white transition-all hover:opacity-90 hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
           title="Pošalji"
         >
           <svg

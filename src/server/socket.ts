@@ -1,96 +1,311 @@
 import { Server as SocketIOServer } from "socket.io";
 import { generatePseudonym } from "../lib/pseudonyms";
+import { PrismaClient } from "../generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
+
+// Group chat colors for participants
+const GROUP_COLORS = ["#8b5cf6", "#60a5fa", "#f472b6", "#10b981", "#f59e0b"];
 
 interface WaitingUser {
   socketId: string;
   userId: string;
+  category?: string;
+  joinedAt: number;
 }
 
 interface ChatRoom {
   roomId: string;
+  isGroup: boolean;
+  category?: string;
   users: {
     socketId: string;
     userId: string;
     pseudonym: string;
+    color: string;
   }[];
 }
 
-const waitingQueue: WaitingUser[] = [];
+// Queues
+const generalQueue: WaitingUser[] = [];
+const categoryQueues: Map<string, WaitingUser[]> = new Map();
+const groupQueue: WaitingUser[] = [];
+
+// Active state
 const activeRooms: Map<string, ChatRoom> = new Map();
 const socketToRoom: Map<string, string> = new Map();
 
+// Stats tracking
+let pendingChatCount = 0;
+let pendingMessageCount = 0;
+
+async function flushStats() {
+  if (pendingChatCount === 0 && pendingMessageCount === 0) return;
+  const chats = pendingChatCount;
+  const messages = pendingMessageCount;
+  pendingChatCount = 0;
+  pendingMessageCount = 0;
+  try {
+    await prisma.stats.upsert({
+      where: { id: "global" },
+      create: { id: "global", totalChatsCreated: chats, totalMessages: messages },
+      update: {
+        totalChatsCreated: { increment: chats },
+        totalMessages: { increment: messages },
+      },
+    });
+  } catch (e) {
+    console.error("Failed to flush stats:", e);
+    pendingChatCount += chats;
+    pendingMessageCount += messages;
+  }
+}
+
+// Flush stats every 30s
+setInterval(flushStats, 30000);
+
+// Group queue check — form group when 3+ are waiting or timeout (30s with 2+)
+function checkGroupQueue(io: SocketIOServer) {
+  const now = Date.now();
+
+  // Form group if 3+ waiting
+  if (groupQueue.length >= 3) {
+    const groupSize = Math.min(groupQueue.length, 5);
+    const members = groupQueue.splice(0, groupSize);
+    createGroupRoom(io, members);
+    return;
+  }
+
+  // Timeout: if 2 people waited 30s+, start with 2
+  if (groupQueue.length >= 2) {
+    const oldest = groupQueue[0];
+    if (now - oldest.joinedAt >= 30000) {
+      const members = groupQueue.splice(0, groupQueue.length);
+      createGroupRoom(io, members);
+    }
+  }
+}
+
+function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
+  const roomId = `group_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const usedPseudonyms = new Set<string>();
+  const users = members.map((m, i) => {
+    let pseudonym = generatePseudonym();
+    while (usedPseudonyms.has(pseudonym)) {
+      pseudonym = generatePseudonym();
+    }
+    usedPseudonyms.add(pseudonym);
+    return {
+      socketId: m.socketId,
+      userId: m.userId,
+      pseudonym,
+      color: GROUP_COLORS[i % GROUP_COLORS.length],
+    };
+  });
+
+  const room: ChatRoom = { roomId, isGroup: true, users };
+  activeRooms.set(roomId, room);
+
+  users.forEach((u) => {
+    socketToRoom.set(u.socketId, roomId);
+    const userSocket = io.sockets.sockets.get(u.socketId);
+    if (userSocket) {
+      userSocket.join(roomId);
+      userSocket.emit("matched", {
+        roomId,
+        isGroup: true,
+        myPseudonym: u.pseudonym,
+        myColor: u.color,
+        participants: users.map((p) => ({
+          pseudonym: p.pseudonym,
+          color: p.color,
+          isMe: p.socketId === u.socketId,
+        })),
+      });
+    }
+  });
+
+  pendingChatCount++;
+  users.forEach((u) => incrementUserChats(u.userId));
+  console.log(`Group created: ${users.map((u) => u.pseudonym).join(", ")} in ${roomId}`);
+}
+
+// Category queue timeout check — fallback to general after 20s
+function checkCategoryQueues(io: SocketIOServer) {
+  const now = Date.now();
+  for (const [categoryId, queue] of categoryQueues) {
+    for (let i = queue.length - 1; i >= 0; i--) {
+      if (now - queue[i].joinedAt >= 20000) {
+        const user = queue.splice(i, 1)[0];
+        // Move to general queue
+        generalQueue.push(user);
+        const userSocket = io.sockets.sockets.get(user.socketId);
+        if (userSocket) {
+          userSocket.emit("category-timeout");
+        }
+        tryMatchGeneral(io);
+      }
+    }
+    if (queue.length === 0) {
+      categoryQueues.delete(categoryId);
+    }
+  }
+}
+
+function tryMatchGeneral(io: SocketIOServer) {
+  while (generalQueue.length >= 2) {
+    const user1 = generalQueue.shift()!;
+    const user2 = generalQueue.shift()!;
+    if (user1.userId === user2.userId) {
+      generalQueue.unshift(user2);
+      break;
+    }
+    createSoloRoom(io, user1, user2);
+  }
+}
+
+function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUser, category?: string) {
+  const roomId = `room_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const pseudonym1 = generatePseudonym();
+  let pseudonym2 = generatePseudonym();
+  while (pseudonym2 === pseudonym1) pseudonym2 = generatePseudonym();
+
+  const room: ChatRoom = {
+    roomId,
+    isGroup: false,
+    category,
+    users: [
+      { socketId: user1.socketId, userId: user1.userId, pseudonym: pseudonym1, color: GROUP_COLORS[0] },
+      { socketId: user2.socketId, userId: user2.userId, pseudonym: pseudonym2, color: GROUP_COLORS[1] },
+    ],
+  };
+
+  activeRooms.set(roomId, room);
+  socketToRoom.set(user1.socketId, roomId);
+  socketToRoom.set(user2.socketId, roomId);
+
+  const s1 = io.sockets.sockets.get(user1.socketId);
+  if (s1) {
+    s1.join(roomId);
+    s1.emit("matched", {
+      roomId,
+      isGroup: false,
+      myPseudonym: pseudonym1,
+      partnerPseudonym: pseudonym2,
+      category,
+    });
+  }
+
+  const s2 = io.sockets.sockets.get(user2.socketId);
+  if (s2) {
+    s2.join(roomId);
+    s2.emit("matched", {
+      roomId,
+      isGroup: false,
+      myPseudonym: pseudonym2,
+      partnerPseudonym: pseudonym1,
+      category,
+    });
+  }
+
+  pendingChatCount++;
+  incrementUserChats(user1.userId);
+  incrementUserChats(user2.userId);
+  console.log(`Match: ${pseudonym1} <-> ${pseudonym2}${category ? ` [${category}]` : ""}`);
+}
+
+async function incrementUserChats(userId: string) {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { totalChats: { increment: 1 } },
+    });
+  } catch (e) {
+    console.error("Failed to increment user chats:", e);
+  }
+}
+
+function removeFromAllQueues(socketId: string, userId: string) {
+  // General queue
+  const gi = generalQueue.findIndex((u) => u.socketId === socketId || u.userId === userId);
+  if (gi !== -1) generalQueue.splice(gi, 1);
+
+  // Category queues
+  for (const [, queue] of categoryQueues) {
+    const ci = queue.findIndex((u) => u.socketId === socketId || u.userId === userId);
+    if (ci !== -1) queue.splice(ci, 1);
+  }
+
+  // Group queue
+  const gri = groupQueue.findIndex((u) => u.socketId === socketId || u.userId === userId);
+  if (gri !== -1) groupQueue.splice(gri, 1);
+}
+
 export function initializeSocket(io: SocketIOServer) {
+  // Periodic checks
+  setInterval(() => checkGroupQueue(io), 3000);
+  setInterval(() => checkCategoryQueues(io), 5000);
+
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    socket.on("find-match", (userId: string) => {
-      // Remove from queue if already waiting
-      const existingIndex = waitingQueue.findIndex(
-        (u) => u.userId === userId || u.socketId === socket.id
-      );
-      if (existingIndex !== -1) {
-        waitingQueue.splice(existingIndex, 1);
-      }
+    socket.on("find-match", (data: { userId: string; mode: string; category?: string }) => {
+      const { userId, mode, category } = data;
 
-      // Remove from any existing room
+      removeFromAllQueues(socket.id, userId);
+
+      // Leave existing room
       const existingRoomId = socketToRoom.get(socket.id);
       if (existingRoomId) {
         leaveRoom(socket, io, existingRoomId);
       }
 
-      // Check if someone is waiting
-      if (waitingQueue.length > 0) {
-        const partner = waitingQueue.shift()!;
+      const now = Date.now();
 
-        // Don't match with yourself
+      if (mode === "group") {
+        groupQueue.push({ socketId: socket.id, userId, joinedAt: now });
+        socket.emit("waiting", { mode: "group", queueSize: groupQueue.length });
+        checkGroupQueue(io);
+        return;
+      }
+
+      // Solo mode
+      if (category) {
+        // Category matching
+        if (!categoryQueues.has(category)) {
+          categoryQueues.set(category, []);
+        }
+        const queue = categoryQueues.get(category)!;
+
+        if (queue.length > 0) {
+          const partner = queue.shift()!;
+          if (partner.userId === userId) {
+            queue.push({ socketId: socket.id, userId, category, joinedAt: now });
+            socket.emit("waiting", { mode: "category", category });
+            return;
+          }
+          createSoloRoom(io, partner, { socketId: socket.id, userId, category, joinedAt: now }, category);
+        } else {
+          queue.push({ socketId: socket.id, userId, category, joinedAt: now });
+          socket.emit("waiting", { mode: "category", category });
+        }
+        return;
+      }
+
+      // General matching
+      if (generalQueue.length > 0) {
+        const partner = generalQueue.shift()!;
         if (partner.userId === userId) {
-          waitingQueue.push({ socketId: socket.id, userId });
-          socket.emit("waiting");
+          generalQueue.push({ socketId: socket.id, userId, joinedAt: now });
+          socket.emit("waiting", { mode: "general" });
           return;
         }
-
-        const roomId = `room_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        const pseudonym1 = generatePseudonym();
-        let pseudonym2 = generatePseudonym();
-        while (pseudonym2 === pseudonym1) {
-          pseudonym2 = generatePseudonym();
-        }
-
-        const room: ChatRoom = {
-          roomId,
-          users: [
-            { socketId: partner.socketId, userId: partner.userId, pseudonym: pseudonym1 },
-            { socketId: socket.id, userId, pseudonym: pseudonym2 },
-          ],
-        };
-
-        activeRooms.set(roomId, room);
-        socketToRoom.set(partner.socketId, roomId);
-        socketToRoom.set(socket.id, roomId);
-
-        // Join socket.io room
-        const partnerSocket = io.sockets.sockets.get(partner.socketId);
-        if (partnerSocket) {
-          partnerSocket.join(roomId);
-          partnerSocket.emit("matched", {
-            roomId,
-            myPseudonym: pseudonym1,
-            partnerPseudonym: pseudonym2,
-          });
-        }
-
-        socket.join(roomId);
-        socket.emit("matched", {
-          roomId,
-          myPseudonym: pseudonym2,
-          partnerPseudonym: pseudonym1,
-        });
-
-        console.log(`Match created: ${pseudonym1} <-> ${pseudonym2} in ${roomId}`);
+        createSoloRoom(io, partner, { socketId: socket.id, userId, joinedAt: now });
       } else {
-        waitingQueue.push({ socketId: socket.id, userId });
-        socket.emit("waiting");
-        console.log(`User ${socket.id} waiting for match`);
+        generalQueue.push({ socketId: socket.id, userId, joinedAt: now });
+        socket.emit("waiting", { mode: "general" });
       }
     });
 
@@ -101,8 +316,11 @@ export function initializeSocket(io: SocketIOServer) {
       const sender = room.users.find((u) => u.socketId === socket.id);
       if (!sender) return;
 
+      pendingMessageCount++;
+
       socket.to(data.roomId).emit("receive-message", {
         pseudonym: sender.pseudonym,
+        color: sender.color,
         message: data.message,
         timestamp: Date.now(),
       });
@@ -111,11 +329,9 @@ export function initializeSocket(io: SocketIOServer) {
     socket.on("typing", (roomId: string) => {
       const room = activeRooms.get(roomId);
       if (!room) return;
-
       const sender = room.users.find((u) => u.socketId === socket.id);
       if (!sender) return;
-
-      socket.to(roomId).emit("partner-typing", sender.pseudonym);
+      socket.to(roomId).emit("partner-typing", { pseudonym: sender.pseudonym, color: sender.color });
     });
 
     socket.on("stop-typing", (roomId: string) => {
@@ -128,14 +344,7 @@ export function initializeSocket(io: SocketIOServer) {
 
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);
-
-      // Remove from waiting queue
-      const queueIndex = waitingQueue.findIndex((u) => u.socketId === socket.id);
-      if (queueIndex !== -1) {
-        waitingQueue.splice(queueIndex, 1);
-      }
-
-      // Leave any active room
+      removeFromAllQueues(socket.id, "");
       const roomId = socketToRoom.get(socket.id);
       if (roomId) {
         leaveRoom(socket, io, roomId);
@@ -154,18 +363,40 @@ function leaveRoom(
 
   const leaver = room.users.find((u) => u.socketId === socket.id);
 
-  // Notify the other user
-  socket.to(roomId).emit("partner-left", leaver?.pseudonym || "Sagovornik");
+  if (room.isGroup) {
+    // In group chat, just remove the user
+    room.users = room.users.filter((u) => u.socketId !== socket.id);
+    socketToRoom.delete(socket.id);
+    const userSocket = io.sockets.sockets.get(socket.id);
+    if (userSocket) userSocket.leave(roomId);
 
-  // Clean up
-  room.users.forEach((u) => {
-    socketToRoom.delete(u.socketId);
-    const userSocket = io.sockets.sockets.get(u.socketId);
-    if (userSocket) {
-      userSocket.leave(roomId);
+    socket.to(roomId).emit("participant-left", {
+      pseudonym: leaver?.pseudonym || "Neko",
+      remainingCount: room.users.length,
+    });
+
+    // Close room if only 1 person left
+    if (room.users.length <= 1) {
+      room.users.forEach((u) => {
+        socketToRoom.delete(u.socketId);
+        const s = io.sockets.sockets.get(u.socketId);
+        if (s) {
+          s.emit("partner-left", leaver?.pseudonym || "Sagovornik");
+          s.leave(roomId);
+        }
+      });
+      activeRooms.delete(roomId);
     }
-  });
+  } else {
+    // Solo chat — close room entirely
+    socket.to(roomId).emit("partner-left", leaver?.pseudonym || "Sagovornik");
+    room.users.forEach((u) => {
+      socketToRoom.delete(u.socketId);
+      const userSocket = io.sockets.sockets.get(u.socketId);
+      if (userSocket) userSocket.leave(roomId);
+    });
+    activeRooms.delete(roomId);
+  }
 
-  activeRooms.delete(roomId);
-  console.log(`Room ${roomId} closed`);
+  console.log(`Room ${roomId}: ${leaver?.pseudonym || socket.id} left`);
 }

@@ -8,6 +8,7 @@ interface Message {
   message: string;
   timestamp: number;
   isOwn: boolean;
+  color?: string;
 }
 
 interface ChatWindowProps {
@@ -15,13 +16,22 @@ interface ChatWindowProps {
   myPseudonym: string;
   partnerTyping: boolean;
   partnerPseudonym: string;
+  isGroup?: boolean;
 }
+
+const getInitials = (name: string) => {
+  const parts = name.split(" ");
+  return parts.length >= 2
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+};
 
 export default function ChatWindow({
   messages,
   myPseudonym,
   partnerTyping,
   partnerPseudonym,
+  isGroup = false,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -37,14 +47,16 @@ export default function ChatWindow({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto chat-scroll p-6 space-y-4">
+    <div className="flex-1 overflow-y-auto chat-scroll p-6 space-y-3">
       {messages.length === 0 && !partnerTyping && (
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <div className="text-4xl mb-4">👋</div>
+            <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center text-2xl mx-auto mb-4">
+              👋
+            </div>
             <p className="text-muted">
-              Spojeni ste! Ti si{" "}
-              <span className="font-semibold text-accent">{myPseudonym}</span>.
+              {isGroup ? "Grupa je formirana!" : "Spojeni ste!"} Ti si{" "}
+              <span className="font-semibold gradient-text">{myPseudonym}</span>.
               <br />
               Reci zdravo!
             </p>
@@ -55,36 +67,58 @@ export default function ChatWindow({
       {messages.map((msg) => (
         <div
           key={msg.id}
-          className={`flex flex-col ${msg.isOwn ? "items-end" : "items-start"}`}
+          className={`flex gap-2.5 animate-slide-up ${msg.isOwn ? "flex-row-reverse" : "flex-row"}`}
         >
-          <span className={`text-xs mb-1 ${msg.isOwn ? "text-accent" : "text-accent-blue"}`}>
-            {msg.pseudonym}
-          </span>
+          {/* Avatar */}
           <div
-            className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${
               msg.isOwn
-                ? "bg-accent text-white rounded-br-md"
-                : "bg-surface-light text-foreground rounded-bl-md"
+                ? "bg-accent/20 text-accent"
+                : "text-white"
             }`}
+            style={!msg.isOwn ? { backgroundColor: msg.color || "rgba(96, 165, 250, 0.2)", color: msg.color || "#60a5fa" } : undefined}
           >
-            <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+            {getInitials(msg.pseudonym)}
           </div>
-          <span className="text-xs text-muted/50 mt-1">
-            {formatTime(msg.timestamp)}
-          </span>
+
+          <div className={`flex flex-col ${msg.isOwn ? "items-end" : "items-start"} max-w-[70%]`}>
+            <span
+              className="text-[11px] mb-0.5 font-medium"
+              style={{ color: msg.isOwn ? "#8b5cf6" : (msg.color || "#60a5fa") }}
+            >
+              {msg.pseudonym}
+            </span>
+            <div
+              className={`rounded-2xl px-4 py-2.5 ${
+                msg.isOwn
+                  ? "bg-gradient-to-br from-accent to-accent-hover text-white rounded-tr-md"
+                  : "glass-card rounded-tl-md"
+              }`}
+            >
+              <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>
+            </div>
+            <span className="text-[10px] text-muted/40 mt-0.5">
+              {formatTime(msg.timestamp)}
+            </span>
+          </div>
         </div>
       ))}
 
       {partnerTyping && (
-        <div className="flex flex-col items-start">
-          <span className="text-xs mb-1 text-accent-blue">
-            {partnerPseudonym}
-          </span>
-          <div className="bg-surface-light rounded-2xl rounded-bl-md px-4 py-3">
-            <div className="flex gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
-              <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse [animation-delay:0.2s]" />
-              <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse [animation-delay:0.4s]" />
+        <div className="flex gap-2.5 animate-slide-up">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px] font-bold text-accent-blue">
+            {getInitials(partnerPseudonym)}
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-[11px] mb-0.5 font-medium text-accent-blue">
+              {partnerPseudonym}
+            </span>
+            <div className="glass-card rounded-2xl rounded-tl-md px-4 py-3">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
+                <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse [animation-delay:0.2s]" />
+                <div className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse [animation-delay:0.4s]" />
+              </div>
             </div>
           </div>
         </div>
