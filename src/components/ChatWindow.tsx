@@ -48,6 +48,16 @@ export default function ChatWindow({
 
   return (
     <div className="flex-1 overflow-y-auto chat-scroll p-6 space-y-3">
+      {/* Privacy warning — always visible at top */}
+      <div className="glass-card rounded-xl p-3 flex items-start gap-2.5 border-amber-500/20 bg-amber-500/5">
+        <span className="text-base flex-shrink-0 mt-0.5">🛡️</span>
+        <p className="text-xs text-muted leading-relaxed">
+          <span className="text-amber-400 font-medium">Tvoja bezbednost je važna.</span>{" "}
+          Nemoj deliti lične podatke — ime, adresu, telefon, društvene mreže ili bilo šta
+          po čemu te neko može identifikovati. Razgovor je anoniman, čuvaj to tako.
+        </p>
+      </div>
+
       {messages.length === 0 && !partnerTyping && (
         <div className="flex items-center justify-center h-full">
           <div className="text-center">

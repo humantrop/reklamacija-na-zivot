@@ -9,6 +9,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -24,6 +26,16 @@ export default function RegisterPage() {
 
     if (password.length < 6) {
       setError("Lozinka mora imati najmanje 6 karaktera");
+      return;
+    }
+
+    if (!ageConfirmed) {
+      setError("Moraš potvrditi da imaš 18 ili više godina");
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError("Moraš prihvatiti uslove korišćenja");
       return;
     }
 
@@ -124,9 +136,44 @@ export default function RegisterPage() {
             />
           </div>
 
+          {/* Age confirmation */}
+          <div className="glass-card rounded-xl p-4 space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ageConfirmed}
+                onChange={(e) => setAgeConfirmed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-surface-light accent-accent"
+              />
+              <span className="text-sm text-muted leading-relaxed">
+                Potvrđujem da imam <span className="text-foreground font-semibold">18 ili više godina</span>.
+                Ova aplikacija nije namenjena maloletnim licima.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-surface-light accent-accent"
+              />
+              <span className="text-sm text-muted leading-relaxed">
+                Prihvatam{" "}
+                <Link href="/uslovi" className="text-accent hover:underline" target="_blank">
+                  Uslove korišćenja
+                </Link>{" "}
+                i{" "}
+                <Link href="/privatnost" className="text-accent hover:underline" target="_blank">
+                  Politiku privatnosti
+                </Link>
+              </span>
+            </label>
+          </div>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !ageConfirmed || !termsAccepted}
             className="glow-button w-full rounded-xl bg-accent px-4 py-3 font-semibold text-white hover:bg-accent-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Registracija..." : "Registruj se"}

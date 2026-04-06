@@ -69,6 +69,17 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* Footer links */}
+      <div className="relative z-10 mt-16 mb-8 flex items-center gap-4 text-xs text-muted">
+        <Link href="/uslovi" className="hover:text-foreground transition-colors">
+          Uslovi korišćenja
+        </Link>
+        <span className="text-surface-light">•</span>
+        <Link href="/privatnost" className="hover:text-foreground transition-colors">
+          Politika privatnosti
+        </Link>
+      </div>
     </div>
   );
 }
