@@ -34,55 +34,66 @@
   --font-sans: var(--font-space-grotesk);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), "Space Grotesk", system-ui, sans-serif;
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), "Space Grotesk", system-ui, sans-serif;
+  }
 }
 
-/* Glassmorphism card */
-.glass-card {
-  background: var(--glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-}
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+  }
 
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 
-/* Gradient button glow */
-.glow-button {
-  position: relative;
-  overflow: hidden;
-}
-.glow-button::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
-  border-radius: inherit;
-  z-index: -1;
-  opacity: 0.5;
-  filter: blur(12px);
-  transition: opacity 0.3s;
-}
-.glow-button:hover::before {
-  opacity: 0.8;
-}
+  /* Gradient button glow */
+  .glow-button {
+    position: relative;
+    overflow: hidden;
+  }
+  .glow-button::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0.5;
+    filter: blur(12px);
+    transition: opacity 0.3s;
+  }
+  .glow-button:hover::before {
+    opacity: 0.8;
+  }
 
-/* Floating background orbs */
-.bg-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.15;
-  pointer-events: none;
+  /* Floating background orbs */
+  .bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  /* Achievement badge shimmer */
+  .badge-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 3s infinite;
+  }
 }
 
 /* Pulse animation for matching */
@@ -90,8 +101,11 @@ body {
   0%, 100% { transform: scale(1); opacity: 0.6; }
   50% { transform: scale(1.05); opacity: 1; }
 }
-.animate-gentle-pulse {
-  animation: gentle-pulse 2s ease-in-out infinite;
+
+@layer utilities {
+  .animate-gentle-pulse {
+    animation: gentle-pulse 2s ease-in-out infinite;
+  }
 }
 
 /* Chat message slide in */
@@ -99,8 +113,11 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-slide-up {
-  animation: slide-up 0.2s ease-out;
+
+@layer utilities {
+  .animate-slide-up {
+    animation: slide-up 0.2s ease-out;
+  }
 }
 
 /* Custom scrollbar for chat */
@@ -118,13 +135,7 @@ body {
   background: var(--accent);
 }
 
-/* Achievement badge shimmer */
 @keyframes shimmer {
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
-}
-.badge-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 3s infinite;
 }
