@@ -3,6 +3,8 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { Users, MessageCircle, Send, ShieldX } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface AdminStats {
   totalUsers: number;
@@ -56,7 +58,9 @@ export default function AdminPage() {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="glass-card rounded-2xl p-8 text-center">
-          <div className="text-4xl mb-4">🚫</div>
+          <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <ShieldX className="w-6 h-6 text-red-400" />
+          </div>
           <p className="text-red-400">{error}</p>
         </div>
       </div>
@@ -65,10 +69,10 @@ export default function AdminPage() {
 
   if (!stats) return null;
 
-  const cards = [
-    { label: "Registrovani korisnici", value: stats.totalUsers, icon: "👥", color: "#8b5cf6" },
-    { label: "Ukupno chatova", value: stats.totalChatsCreated, icon: "💬", color: "#3b82f6" },
-    { label: "Ukupno poruka", value: stats.totalMessages, icon: "📨", color: "#10b981" },
+  const cards: { label: string; value: number; icon: LucideIcon; color: string }[] = [
+    { label: "Registrovani korisnici", value: stats.totalUsers, icon: Users, color: "#8b5cf6" },
+    { label: "Ukupno chatova", value: stats.totalChatsCreated, icon: MessageCircle, color: "#3b82f6" },
+    { label: "Ukupno poruka", value: stats.totalMessages, icon: Send, color: "#10b981" },
   ];
 
   return (
@@ -82,19 +86,22 @@ export default function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {cards.map((card) => (
-            <div key={card.label} className="glass-card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-2xl">{card.icon}</span>
-                <span className="text-xs text-muted font-medium uppercase tracking-wider">
-                  {card.label}
-                </span>
+          {cards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div key={card.label} className="glass-card rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <Icon className="w-5 h-5" style={{ color: card.color }} />
+                  <span className="text-xs text-muted font-medium uppercase tracking-wider">
+                    {card.label}
+                  </span>
+                </div>
+                <p className="text-4xl font-bold" style={{ color: card.color }}>
+                  {card.value.toLocaleString()}
+                </p>
               </div>
-              <p className="text-4xl font-bold" style={{ color: card.color }}>
-                {card.value.toLocaleString()}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-4 glass-card rounded-2xl p-4">

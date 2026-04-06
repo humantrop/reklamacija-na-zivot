@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { io, Socket } from "socket.io-client";
+import { Plug, Users, Search } from "lucide-react";
 import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import { getCategoryById } from "@/lib/categories";
@@ -71,7 +72,12 @@ function ChatContent() {
         setWaitingInfo(`Čekamo još ljudi za grupu (${data.queueSize || 1} u redu)...`);
       } else if (data.mode === "category") {
         const cat = getCategoryById(data.category || "");
-        setWaitingInfo(`Tražimo nekog sa temom: ${cat?.icon || ""} ${cat?.label || data.category}...`);
+        if (cat) {
+          const Icon = cat.icon;
+          setWaitingInfo(`Tražimo nekog sa temom: ${cat.label}...`);
+        } else {
+          setWaitingInfo(`Tražimo nekog sa temom: ${data.category}...`);
+        }
       } else {
         setWaitingInfo("Tražimo sagovornika...");
       }
@@ -221,7 +227,9 @@ function ChatContent() {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4 animate-pulse">🔌</div>
+          <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Plug className="w-6 h-6 text-accent" />
+          </div>
           <p className="text-muted">Povezivanje...</p>
         </div>
       </div>
@@ -230,20 +238,25 @@ function ChatContent() {
 
   if (chatState === "waiting") {
     const categoryInfo = category ? getCategoryById(category) : null;
+    const CategoryIcon = categoryInfo?.icon;
     return (
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
         <div className="bg-orb w-64 h-64 bg-accent top-[20%] left-[20%]" />
 
         <div className="relative z-10 text-center">
-          <div className="text-6xl mb-6 animate-gentle-pulse">
-            {mode === "group" ? "👥" : "🔍"}
+          <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-6 animate-gentle-pulse">
+            {mode === "group" ? (
+              <Users className="w-7 h-7 text-accent" />
+            ) : (
+              <Search className="w-7 h-7 text-accent" />
+            )}
           </div>
           <h2 className="text-2xl font-bold mb-2">
             {waitingInfo || "Tražimo sagovornika..."}
           </h2>
-          {categoryInfo && (
+          {categoryInfo && CategoryIcon && (
             <div className="inline-flex items-center gap-2 glass-card rounded-full px-4 py-1.5 mt-2 mb-4">
-              <span>{categoryInfo.icon}</span>
+              <CategoryIcon className="w-4 h-4" style={{ color: categoryInfo.color }} />
               <span className="text-sm" style={{ color: categoryInfo.color }}>{categoryInfo.label}</span>
             </div>
           )}
@@ -265,6 +278,7 @@ function ChatContent() {
   }
 
   const categoryInfo = matchCategory ? getCategoryById(matchCategory) : null;
+  const MatchCategoryIcon = categoryInfo?.icon;
 
   return (
     <div className="flex flex-1 flex-col max-w-3xl mx-auto w-full">
@@ -276,12 +290,12 @@ function ChatContent() {
               Grupa
             </span>
           )}
-          {categoryInfo && (
+          {categoryInfo && MatchCategoryIcon && (
             <span
-              className="flex-shrink-0 text-xs glass-card rounded-full px-2 py-0.5 font-medium"
+              className="flex-shrink-0 text-xs glass-card rounded-full px-2 py-0.5 font-medium inline-flex items-center gap-1"
               style={{ color: categoryInfo.color }}
             >
-              {categoryInfo.icon} {categoryInfo.label}
+              <MatchCategoryIcon className="w-3 h-3" /> {categoryInfo.label}
             </span>
           )}
           <div className="min-w-0">
@@ -300,9 +314,9 @@ function ChatContent() {
           {chatState === "ended" ? (
             <button
               onClick={findNewMatch}
-              className="rounded-xl bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+              className="rounded-xl bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-hover transition-colors inline-flex items-center gap-1.5"
             >
-              🔍 Novi
+              <Search className="w-3.5 h-3.5" /> Novi
             </button>
           ) : (
             <button
@@ -340,9 +354,9 @@ function ChatContent() {
           </p>
           <button
             onClick={findNewMatch}
-            className="rounded-xl bg-accent px-6 py-2 font-medium text-white hover:bg-accent-hover transition-colors"
+            className="rounded-xl bg-accent px-6 py-2 font-medium text-white hover:bg-accent-hover transition-colors inline-flex items-center gap-2"
           >
-            🔍 Nađi novog sagovornika
+            <Search className="w-4 h-4" /> Nađi novog sagovornika
           </button>
         </div>
       )}

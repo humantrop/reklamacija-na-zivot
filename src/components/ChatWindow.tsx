@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { ShieldAlert, Hand } from "lucide-react";
 
 interface Message {
   id: string;
@@ -50,7 +51,7 @@ export default function ChatWindow({
     <div className="flex-1 overflow-y-auto chat-scroll p-6 space-y-3">
       {/* Privacy warning — always visible at top */}
       <div className="glass-card rounded-xl p-3 flex items-start gap-2.5 border-amber-500/20 bg-amber-500/5">
-        <span className="text-base flex-shrink-0 mt-0.5">🛡️</span>
+        <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-muted leading-relaxed">
           <span className="text-amber-400 font-medium">Tvoja bezbednost je važna.</span>{" "}
           Nemoj deliti lične podatke — ime, adresu, telefon, društvene mreže ili bilo šta
@@ -61,8 +62,8 @@ export default function ChatWindow({
       {messages.length === 0 && !partnerTyping && (
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center text-2xl mx-auto mb-4">
-              👋
+            <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+              <Hand className="w-7 h-7 text-accent" />
             </div>
             <p className="text-muted">
               {isGroup ? "Grupa je formirana!" : "Spojeni ste!"} Ti si{" "}

@@ -1,18 +1,20 @@
+import { Sprout, MessageCircle, Star, Trophy, Crown, Flame, type LucideIcon } from "lucide-react";
+
 export interface Achievement {
   id: string;
   name: string;
-  icon: string;
+  icon: LucideIcon;
   requiredChats: number;
   color: string;
 }
 
 export const achievements: Achievement[] = [
-  { id: "none", name: "Novajlija", icon: "🌱", requiredChats: 0, color: "#6b7280" },
-  { id: "beginner", name: "Početnik", icon: "💬", requiredChats: 1, color: "#10b981" },
-  { id: "social", name: "Društvenjak", icon: "🌟", requiredChats: 5, color: "#3b82f6" },
-  { id: "veteran", name: "Veteran", icon: "🏆", requiredChats: 15, color: "#f59e0b" },
-  { id: "legend", name: "Legenda", icon: "👑", requiredChats: 50, color: "#8b5cf6" },
-  { id: "master", name: "Vladar reklamacija", icon: "🔥", requiredChats: 100, color: "#ef4444" },
+  { id: "none", name: "Novajlija", icon: Sprout, requiredChats: 0, color: "#6b7280" },
+  { id: "beginner", name: "Početnik", icon: MessageCircle, requiredChats: 1, color: "#10b981" },
+  { id: "social", name: "Društvenjak", icon: Star, requiredChats: 5, color: "#3b82f6" },
+  { id: "veteran", name: "Veteran", icon: Trophy, requiredChats: 15, color: "#f59e0b" },
+  { id: "legend", name: "Legenda", icon: Crown, requiredChats: 50, color: "#8b5cf6" },
+  { id: "master", name: "Vladar reklamacija", icon: Flame, requiredChats: 100, color: "#ef4444" },
 ];
 
 export function getCurrentAchievement(totalChats: number): Achievement {

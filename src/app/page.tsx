@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EyeOff, MessageCircle, Lock } from "lucide-react";
 
 export default function Home() {
   return (
@@ -42,8 +43,8 @@ export default function Home() {
 
       <div className="relative z-10 mt-24 grid max-w-3xl grid-cols-1 gap-6 sm:grid-cols-3">
         <div className="glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:border-accent/30 hover:-translate-y-1">
-          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-xl mb-4">
-            🎭
+          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
+            <EyeOff className="w-5 h-5 text-accent" />
           </div>
           <h3 className="font-semibold text-foreground">Potpuna anonimnost</h3>
           <p className="mt-2 text-sm text-muted leading-relaxed">
@@ -51,8 +52,8 @@ export default function Home() {
           </p>
         </div>
         <div className="glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:border-accent-blue/30 hover:-translate-y-1">
-          <div className="w-10 h-10 rounded-lg bg-accent-blue/10 flex items-center justify-center text-xl mb-4">
-            💬
+          <div className="w-10 h-10 rounded-lg bg-accent-blue/10 flex items-center justify-center mb-4">
+            <MessageCircle className="w-5 h-5 text-accent-blue" />
           </div>
           <h3 className="font-semibold text-foreground">Instant razgovor</h3>
           <p className="mt-2 text-sm text-muted leading-relaxed">
@@ -60,8 +61,8 @@ export default function Home() {
           </p>
         </div>
         <div className="glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:border-accent-pink/30 hover:-translate-y-1">
-          <div className="w-10 h-10 rounded-lg bg-accent-pink/10 flex items-center justify-center text-xl mb-4">
-            🔒
+          <div className="w-10 h-10 rounded-lg bg-accent-pink/10 flex items-center justify-center mb-4">
+            <Lock className="w-5 h-5 text-accent-pink" />
           </div>
           <h3 className="font-semibold text-foreground">Poruke nestaju</h3>
           <p className="mt-2 text-sm text-muted leading-relaxed">

@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { Search, Users, EyeOff, Lock } from "lucide-react";
 import CategoryPicker from "@/components/CategoryPicker";
 import AchievementToast from "@/components/AchievementToast";
 import { getCurrentAchievement, getNextAchievement, getProgress } from "@/lib/achievements";
@@ -67,6 +68,8 @@ export default function DashboardPage() {
   const currentBadge = getCurrentAchievement(stats.totalChats);
   const nextBadge = getNextAchievement(stats.totalChats);
   const progress = getProgress(stats.totalChats);
+  const CurrentBadgeIcon = currentBadge.icon;
+  const NextBadgeIcon = nextBadge?.icon;
 
   return (
     <div className="relative flex flex-1 flex-col items-center px-6 py-12 overflow-hidden">
@@ -80,10 +83,10 @@ export default function DashboardPage() {
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center gap-4">
             <div
-              className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl badge-shimmer"
+              className="w-14 h-14 rounded-xl flex items-center justify-center badge-shimmer"
               style={{ backgroundColor: `${currentBadge.color}15` }}
             >
-              {currentBadge.icon}
+              <CurrentBadgeIcon className="w-7 h-7" style={{ color: currentBadge.color }} />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
@@ -98,10 +101,12 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted">razgovora</p>
                 </div>
               </div>
-              {nextBadge && (
+              {nextBadge && NextBadgeIcon && (
                 <div className="mt-3">
-                  <div className="flex justify-between text-xs text-muted mb-1">
-                    <span>Sledeća: {nextBadge.icon} {nextBadge.name}</span>
+                  <div className="flex justify-between items-center text-xs text-muted mb-1">
+                    <span className="flex items-center gap-1">
+                      Sledeća: <NextBadgeIcon className="w-3.5 h-3.5" style={{ color: nextBadge.color }} /> {nextBadge.name}
+                    </span>
                     <span>{stats.totalChats}/{nextBadge.requiredChats}</span>
                   </div>
                   <div className="h-2 rounded-full bg-surface-light overflow-hidden">
@@ -157,8 +162,8 @@ export default function DashboardPage() {
             onClick={() => startChat("solo")}
             className="glow-button group glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent/40"
           >
-            <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
-              🔍
+            <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Search className="w-6 h-6 text-accent" />
             </div>
             <h3 className="text-lg font-bold mb-1">Nađi sagovornika</h3>
             <p className="text-sm text-muted">
@@ -170,8 +175,8 @@ export default function DashboardPage() {
             onClick={() => startChat("group")}
             className="glow-button group glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/40"
           >
-            <div className="w-12 h-12 rounded-xl bg-accent-blue/10 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
-              👥
+            <div className="w-12 h-12 rounded-xl bg-accent-blue/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Users className="w-6 h-6 text-accent-blue" />
             </div>
             <h3 className="text-lg font-bold mb-1">Grupni razgovor</h3>
             <p className="text-sm text-muted">
@@ -183,13 +188,15 @@ export default function DashboardPage() {
         {/* Info */}
         <div className="grid grid-cols-2 gap-3">
           <div className="glass-card rounded-xl p-4">
-            <p className="text-sm text-muted">
-              <span className="text-foreground font-medium">🎭 Anonimno</span> — tvoj email i ime su skriveni
+            <p className="text-sm text-muted flex items-center gap-2">
+              <EyeOff className="w-4 h-4 text-foreground" />
+              <span><span className="text-foreground font-medium">Anonimno</span> — tvoj email i ime su skriveni</span>
             </p>
           </div>
           <div className="glass-card rounded-xl p-4">
-            <p className="text-sm text-muted">
-              <span className="text-foreground font-medium">🔒 Nestaje</span> — ništa se ne čuva
+            <p className="text-sm text-muted flex items-center gap-2">
+              <Lock className="w-4 h-4 text-foreground" />
+              <span><span className="text-foreground font-medium">Nestaje</span> — ništa se ne čuva</span>
             </p>
           </div>
         </div>

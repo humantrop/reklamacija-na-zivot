@@ -24,6 +24,8 @@ export default function AchievementToast({ achievement, onClose }: AchievementTo
 
   if (!achievement) return null;
 
+  const Icon = achievement.icon;
+
   return (
     <div
       className={`fixed top-20 right-4 z-50 glass-card rounded-2xl p-4 pr-6 transition-all duration-300 ${
@@ -33,10 +35,10 @@ export default function AchievementToast({ achievement, onClose }: AchievementTo
     >
       <div className="flex items-center gap-3">
         <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl badge-shimmer"
+          className="w-12 h-12 rounded-xl flex items-center justify-center badge-shimmer"
           style={{ backgroundColor: `${achievement.color}20` }}
         >
-          {achievement.icon}
+          <Icon className="w-6 h-6" style={{ color: achievement.color }} />
         </div>
         <div>
           <p className="text-xs text-muted font-medium uppercase tracking-wider">Nova značka!</p>
