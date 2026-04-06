@@ -16,16 +16,25 @@ interface WaitingUser {
   joinedAt: number;
 }
 
+interface RoomUser {
+  socketId: string;
+  userId: string;
+  pseudonym: string;
+  color: string;
+  connected: boolean;
+}
+
 interface ChatRoom {
   roomId: string;
   isGroup: boolean;
   category?: string;
-  users: {
-    socketId: string;
-    userId: string;
-    pseudonym: string;
-    color: string;
-  }[];
+  users: RoomUser[];
+}
+
+interface DisconnectedUser {
+  userId: string;
+  roomId: string;
+  timeout: ReturnType<typeof setTimeout>;
 }
 
 // Queues
@@ -36,6 +45,13 @@ const groupQueue: WaitingUser[] = [];
 // Active state
 const activeRooms: Map<string, ChatRoom> = new Map();
 const socketToRoom: Map<string, string> = new Map();
+const userToRoom: Map<string, string> = new Map();
+
+// Temporarily disconnected users (grace period for reconnect)
+const disconnectedUsers: Map<string, DisconnectedUser> = new Map();
+
+// How long to wait before kicking a disconnected user (30s)
+const DISCONNECT_GRACE_MS = 30000;
 
 // Stats tracking
 let pendingChatCount = 0;
@@ -70,7 +86,6 @@ setInterval(flushStats, 30000);
 function checkGroupQueue(io: SocketIOServer) {
   const now = Date.now();
 
-  // Form group if 3+ waiting
   if (groupQueue.length >= 3) {
     const groupSize = Math.min(groupQueue.length, 5);
     const members = groupQueue.splice(0, groupSize);
@@ -78,7 +93,6 @@ function checkGroupQueue(io: SocketIOServer) {
     return;
   }
 
-  // Timeout: if 2 people waited 30s+, start with 2
   if (groupQueue.length >= 2) {
     const oldest = groupQueue[0];
     if (now - oldest.joinedAt >= 30000) {
@@ -91,7 +105,7 @@ function checkGroupQueue(io: SocketIOServer) {
 function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
   const roomId = `group_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const usedPseudonyms = new Set<string>();
-  const users = members.map((m, i) => {
+  const users: RoomUser[] = members.map((m, i) => {
     let pseudonym = generatePseudonym();
     while (usedPseudonyms.has(pseudonym)) {
       pseudonym = generatePseudonym();
@@ -102,6 +116,7 @@ function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
       userId: m.userId,
       pseudonym,
       color: GROUP_COLORS[i % GROUP_COLORS.length],
+      connected: true,
     };
   });
 
@@ -110,6 +125,7 @@ function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
 
   users.forEach((u) => {
     socketToRoom.set(u.socketId, roomId);
+    userToRoom.set(u.userId, roomId);
     const userSocket = io.sockets.sockets.get(u.socketId);
     if (userSocket) {
       userSocket.join(roomId);
@@ -139,7 +155,6 @@ function checkCategoryQueues(io: SocketIOServer) {
     for (let i = queue.length - 1; i >= 0; i--) {
       if (now - queue[i].joinedAt >= 20000) {
         const user = queue.splice(i, 1)[0];
-        // Move to general queue
         generalQueue.push(user);
         const userSocket = io.sockets.sockets.get(user.socketId);
         if (userSocket) {
@@ -177,14 +192,16 @@ function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUs
     isGroup: false,
     category,
     users: [
-      { socketId: user1.socketId, userId: user1.userId, pseudonym: pseudonym1, color: GROUP_COLORS[0] },
-      { socketId: user2.socketId, userId: user2.userId, pseudonym: pseudonym2, color: GROUP_COLORS[1] },
+      { socketId: user1.socketId, userId: user1.userId, pseudonym: pseudonym1, color: GROUP_COLORS[0], connected: true },
+      { socketId: user2.socketId, userId: user2.userId, pseudonym: pseudonym2, color: GROUP_COLORS[1], connected: true },
     ],
   };
 
   activeRooms.set(roomId, room);
   socketToRoom.set(user1.socketId, roomId);
   socketToRoom.set(user2.socketId, roomId);
+  userToRoom.set(user1.userId, roomId);
+  userToRoom.set(user2.userId, roomId);
 
   const s1 = io.sockets.sockets.get(user1.socketId);
   if (s1) {
@@ -228,19 +245,67 @@ async function incrementUserChats(userId: string) {
 }
 
 function removeFromAllQueues(socketId: string, userId: string) {
-  // General queue
   const gi = generalQueue.findIndex((u) => u.socketId === socketId || u.userId === userId);
   if (gi !== -1) generalQueue.splice(gi, 1);
 
-  // Category queues
   for (const [, queue] of categoryQueues) {
     const ci = queue.findIndex((u) => u.socketId === socketId || u.userId === userId);
     if (ci !== -1) queue.splice(ci, 1);
   }
 
-  // Group queue
   const gri = groupQueue.findIndex((u) => u.socketId === socketId || u.userId === userId);
   if (gri !== -1) groupQueue.splice(gri, 1);
+}
+
+function finalizeLeave(io: SocketIOServer, userId: string, roomId: string) {
+  const room = activeRooms.get(roomId);
+  if (!room) return;
+
+  const leaver = room.users.find((u) => u.userId === userId);
+  if (!leaver) return;
+
+  // Remove from room
+  room.users = room.users.filter((u) => u.userId !== userId);
+  socketToRoom.delete(leaver.socketId);
+  userToRoom.delete(userId);
+
+  const leaverSocket = io.sockets.sockets.get(leaver.socketId);
+  if (leaverSocket) leaverSocket.leave(roomId);
+
+  if (room.isGroup) {
+    // Notify remaining members
+    io.to(roomId).emit("participant-left", {
+      pseudonym: leaver.pseudonym,
+      remainingCount: room.users.length,
+    });
+
+    if (room.users.length <= 1) {
+      room.users.forEach((u) => {
+        socketToRoom.delete(u.socketId);
+        userToRoom.delete(u.userId);
+        const s = io.sockets.sockets.get(u.socketId);
+        if (s) {
+          s.emit("partner-left");
+          s.leave(roomId);
+        }
+      });
+      activeRooms.delete(roomId);
+    }
+  } else {
+    // Solo — notify partner and close room
+    room.users.forEach((u) => {
+      socketToRoom.delete(u.socketId);
+      userToRoom.delete(u.userId);
+      const s = io.sockets.sockets.get(u.socketId);
+      if (s) {
+        s.emit("partner-left");
+        s.leave(roomId);
+      }
+    });
+    activeRooms.delete(roomId);
+  }
+
+  console.log(`Room ${roomId}: ${leaver.pseudonym} left`);
 }
 
 export function initializeSocket(io: SocketIOServer) {
@@ -251,15 +316,84 @@ export function initializeSocket(io: SocketIOServer) {
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
 
+    // Rejoin after refresh/reconnect
+    socket.on("rejoin", (data: { userId: string; roomId: string }) => {
+      const { userId, roomId } = data;
+
+      // Cancel disconnect timeout if pending
+      const pending = disconnectedUsers.get(userId);
+      if (pending) {
+        clearTimeout(pending.timeout);
+        disconnectedUsers.delete(userId);
+      }
+
+      const room = activeRooms.get(roomId);
+      if (!room) {
+        socket.emit("rejoin-failed");
+        return;
+      }
+
+      const user = room.users.find((u) => u.userId === userId);
+      if (!user) {
+        socket.emit("rejoin-failed");
+        return;
+      }
+
+      // Update socketId and reconnect
+      const oldSocketId = user.socketId;
+      socketToRoom.delete(oldSocketId);
+      user.socketId = socket.id;
+      user.connected = true;
+      socketToRoom.set(socket.id, roomId);
+      userToRoom.set(userId, roomId);
+      socket.join(roomId);
+
+      // Send room state back to client
+      if (room.isGroup) {
+        socket.emit("rejoin-success", {
+          roomId,
+          isGroup: true,
+          myPseudonym: user.pseudonym,
+          myColor: user.color,
+          category: room.category,
+          participants: room.users.filter((u) => u.connected).map((p) => ({
+            pseudonym: p.pseudonym,
+            color: p.color,
+            isMe: p.userId === userId,
+          })),
+        });
+      } else {
+        const partner = room.users.find((u) => u.userId !== userId);
+        socket.emit("rejoin-success", {
+          roomId,
+          isGroup: false,
+          myPseudonym: user.pseudonym,
+          partnerPseudonym: partner?.pseudonym || "",
+          partnerConnected: partner?.connected ?? false,
+          category: room.category,
+        });
+      }
+
+      // Notify others that user reconnected
+      socket.to(roomId).emit("partner-reconnected", { pseudonym: user.pseudonym });
+      console.log(`Rejoin: ${user.pseudonym} back in ${roomId}`);
+    });
+
     socket.on("find-match", (data: { userId: string; mode: string; category?: string }) => {
       const { userId, mode, category } = data;
 
       removeFromAllQueues(socket.id, userId);
 
-      // Leave existing room
-      const existingRoomId = socketToRoom.get(socket.id);
+      // Leave existing room explicitly
+      const existingRoomId = socketToRoom.get(socket.id) || userToRoom.get(userId);
       if (existingRoomId) {
-        leaveRoom(socket, io, existingRoomId);
+        // Cancel any pending disconnect timeout
+        const pending = disconnectedUsers.get(userId);
+        if (pending) {
+          clearTimeout(pending.timeout);
+          disconnectedUsers.delete(userId);
+        }
+        finalizeLeave(io, userId, existingRoomId);
       }
 
       const now = Date.now();
@@ -271,9 +405,7 @@ export function initializeSocket(io: SocketIOServer) {
         return;
       }
 
-      // Solo mode
       if (category) {
-        // Category matching
         if (!categoryQueues.has(category)) {
           categoryQueues.set(category, []);
         }
@@ -294,7 +426,6 @@ export function initializeSocket(io: SocketIOServer) {
         return;
       }
 
-      // General matching
       if (generalQueue.length > 0) {
         const partner = generalQueue.shift()!;
         if (partner.userId === userId) {
@@ -338,65 +469,49 @@ export function initializeSocket(io: SocketIOServer) {
       socket.to(roomId).emit("partner-stop-typing");
     });
 
-    socket.on("leave-chat", (roomId: string) => {
-      leaveRoom(socket, io, roomId);
+    socket.on("leave-chat", (data: { roomId: string; userId: string }) => {
+      const { roomId, userId } = data;
+      // Cancel any pending disconnect timeout
+      const pending = disconnectedUsers.get(userId);
+      if (pending) {
+        clearTimeout(pending.timeout);
+        disconnectedUsers.delete(userId);
+      }
+      finalizeLeave(io, userId, roomId);
     });
 
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);
       removeFromAllQueues(socket.id, "");
+
       const roomId = socketToRoom.get(socket.id);
-      if (roomId) {
-        leaveRoom(socket, io, roomId);
-      }
+      if (!roomId) return;
+
+      const room = activeRooms.get(roomId);
+      if (!room) return;
+
+      const user = room.users.find((u) => u.socketId === socket.id);
+      if (!user) return;
+
+      // Mark as temporarily disconnected
+      user.connected = false;
+
+      // Notify others
+      socket.to(roomId).emit("partner-disconnected", { pseudonym: user.pseudonym });
+
+      // Start grace period — if they don't reconnect in time, finalize leave
+      const timeout = setTimeout(() => {
+        disconnectedUsers.delete(user.userId);
+        finalizeLeave(io, user.userId, roomId);
+      }, DISCONNECT_GRACE_MS);
+
+      disconnectedUsers.set(user.userId, {
+        userId: user.userId,
+        roomId,
+        timeout,
+      });
+
+      console.log(`${user.pseudonym} disconnected, ${DISCONNECT_GRACE_MS / 1000}s grace period`);
     });
   });
-}
-
-function leaveRoom(
-  socket: { id: string; to: (roomId: string) => { emit: (event: string, data?: unknown) => void } },
-  io: SocketIOServer,
-  roomId: string
-) {
-  const room = activeRooms.get(roomId);
-  if (!room) return;
-
-  const leaver = room.users.find((u) => u.socketId === socket.id);
-
-  if (room.isGroup) {
-    // In group chat, just remove the user
-    room.users = room.users.filter((u) => u.socketId !== socket.id);
-    socketToRoom.delete(socket.id);
-    const userSocket = io.sockets.sockets.get(socket.id);
-    if (userSocket) userSocket.leave(roomId);
-
-    socket.to(roomId).emit("participant-left", {
-      pseudonym: leaver?.pseudonym || "Neko",
-      remainingCount: room.users.length,
-    });
-
-    // Close room if only 1 person left
-    if (room.users.length <= 1) {
-      room.users.forEach((u) => {
-        socketToRoom.delete(u.socketId);
-        const s = io.sockets.sockets.get(u.socketId);
-        if (s) {
-          s.emit("partner-left", leaver?.pseudonym || "Sagovornik");
-          s.leave(roomId);
-        }
-      });
-      activeRooms.delete(roomId);
-    }
-  } else {
-    // Solo chat — close room entirely
-    socket.to(roomId).emit("partner-left", leaver?.pseudonym || "Sagovornik");
-    room.users.forEach((u) => {
-      socketToRoom.delete(u.socketId);
-      const userSocket = io.sockets.sockets.get(u.socketId);
-      if (userSocket) userSocket.leave(roomId);
-    });
-    activeRooms.delete(roomId);
-  }
-
-  console.log(`Room ${roomId}: ${leaver?.pseudonym || socket.id} left`);
 }
