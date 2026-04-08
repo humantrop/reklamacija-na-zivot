@@ -7,7 +7,13 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Redirect authenticated users away from auth pages
-  if (token && (pathname === "/login" || pathname === "/register")) {
+  if (
+    token &&
+    (pathname === "/login" ||
+      pathname === "/register" ||
+      pathname === "/forgot-password" ||
+      pathname === "/reset-password")
+  ) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -25,5 +31,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/chat/:path*", "/login", "/register", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/chat/:path*", "/login", "/register", "/forgot-password", "/reset-password", "/admin/:path*"],
 };
