@@ -3,12 +3,13 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, EyeOff, Lock, Link2, UserPlus } from "lucide-react";
-import CategoryPicker from "@/components/CategoryPicker";
+import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles } from "lucide-react";
+import MoodPicker from "@/components/MoodPicker";
 import AchievementToast from "@/components/AchievementToast";
 import { getCurrentAchievement, getNextAchievement, getProgress } from "@/lib/achievements";
 import type { Achievement } from "@/lib/achievements";
 import { getGuestId, isGuestId } from "@/lib/guest";
+import { getTodaysTopic } from "@/lib/topics";
 
 interface UserStats {
   totalChats: number;
@@ -17,8 +18,8 @@ interface UserStats {
 function DashboardContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [useCategoryMatch, setUseCategoryMatch] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [useMoodMatch, setUseMoodMatch] = useState(false);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [connectId, setConnectId] = useState("");
   const [stats, setStats] = useState<UserStats>({ totalChats: 0 });
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
@@ -47,13 +48,16 @@ function DashboardContent() {
   const startChat = useCallback(
     (mode: "solo" | "group") => {
       const params = new URLSearchParams({ mode });
-      if (useCategoryMatch && selectedCategory) {
-        params.set("category", selectedCategory);
+      if (useMoodMatch && selectedMood) {
+        params.set("mood", selectedMood);
       }
       router.push(`/chat?${params.toString()}`);
     },
-    [router, useCategoryMatch, selectedCategory]
+    [router, useMoodMatch, selectedMood]
   );
+
+  const topic = getTodaysTopic();
+  const TopicIcon = topic.icon;
 
   const handleCloseAchievement = useCallback(() => {
     setNewAchievement(null);
@@ -151,36 +155,62 @@ function DashboardContent() {
         </div>
         )}
 
-        {/* Category toggle */}
+        {/* Mood picker */}
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-semibold">Sparivanje po kategoriji</h3>
-              <p className="text-sm text-muted mt-0.5">Nađi nekog sa sličnim problemom</p>
+              <h3 className="font-semibold">Kako se osećaš?</h3>
+              <p className="text-sm text-muted mt-0.5">Sparujemo te sa nekim ko razume</p>
             </div>
             <button
               onClick={() => {
-                setUseCategoryMatch(!useCategoryMatch);
-                if (useCategoryMatch) setSelectedCategory(null);
+                setUseMoodMatch(!useMoodMatch);
+                if (useMoodMatch) setSelectedMood(null);
               }}
               className={`relative w-12 h-6 rounded-full transition-colors ${
-                useCategoryMatch ? "bg-accent" : "bg-surface-light"
+                useMoodMatch ? "bg-accent" : "bg-surface-light"
               }`}
             >
               <div
                 className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                  useCategoryMatch ? "translate-x-6" : "translate-x-0.5"
+                  useMoodMatch ? "translate-x-6" : "translate-x-0.5"
                 }`}
               />
             </button>
           </div>
 
-          {useCategoryMatch && (
+          {useMoodMatch && (
             <div className="animate-slide-up">
-              <p className="text-xs text-muted mb-3">O čemu želiš da pričaš?</p>
-              <CategoryPicker selected={selectedCategory} onSelect={setSelectedCategory} />
+              <p className="text-xs text-muted mb-3">Izaberi raspoloženje — slušaoci se sparuju sa onima kojima treba razgovor</p>
+              <MoodPicker selected={selectedMood} onSelect={setSelectedMood} />
             </div>
           )}
+        </div>
+
+        {/* Daily topic */}
+        <div className="glass-card rounded-2xl p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${topic.color}15` }}>
+              <TopicIcon className="w-6 h-6" style={{ color: topic.color }} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <p className="text-xs text-muted font-medium uppercase tracking-wider">Tema dana</p>
+              </div>
+              <p className="text-lg font-semibold leading-snug" style={{ color: topic.color }}>{topic.prompt}</p>
+              <button
+                onClick={() => {
+                  const params = new URLSearchParams({ mode: "solo", topic: topic.id });
+                  router.push(`/chat?${params.toString()}`);
+                }}
+                className="mt-3 rounded-lg px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-all"
+                style={{ backgroundColor: topic.color }}
+              >
+                Pridruži se temi
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Chat buttons */}

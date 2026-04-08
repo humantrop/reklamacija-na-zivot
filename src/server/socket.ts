@@ -20,7 +20,6 @@ const MIN_MESSAGE_INTERVAL_MS = 500;
 interface WaitingUser {
   socketId: string;
   userId: string;
-  category?: string;
   joinedAt: number;
 }
 
@@ -52,7 +51,9 @@ interface DisconnectedUser {
 
 // Queues
 const generalQueue: WaitingUser[] = [];
-const categoryQueues: Map<string, WaitingUser[]> = new Map();
+const moodQueues: Map<string, WaitingUser[]> = new Map(); // mood id → waiting users
+const listenerQueue: WaitingUser[] = []; // "slusam" mood users wait here
+const topicQueue: Map<string, WaitingUser[]> = new Map(); // topic id → waiting users
 const groupQueue: WaitingUser[] = [];
 
 // Active state
@@ -242,19 +243,60 @@ function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
   console.log(`Group created: ${users.map((u) => u.pseudonym).join(", ")} in ${roomId}`);
 }
 
-function checkCategoryQueues(io: SocketIOServer) {
+function checkMoodQueues(io: SocketIOServer) {
   const now = Date.now();
-  for (const [categoryId, queue] of categoryQueues) {
+
+  // Try to match listeners with any talker in mood queues
+  for (let li = listenerQueue.length - 1; li >= 0; li--) {
+    const listener = listenerQueue[li];
+    let matched = false;
+    // Find a talker from any mood queue
+    for (const [moodId, queue] of moodQueues) {
+      if (queue.length > 0) {
+        const talker = queue.shift()!;
+        listenerQueue.splice(li, 1);
+        createSoloRoom(io, listener, talker, moodId);
+        if (queue.length === 0) moodQueues.delete(moodId);
+        matched = true;
+        break;
+      }
+    }
+    // Timeout: listener waiting > 20s → general queue
+    if (!matched && now - listener.joinedAt >= 20000) {
+      listenerQueue.splice(li, 1);
+      generalQueue.push(listener);
+      const s = io.sockets.sockets.get(listener.socketId);
+      if (s) s.emit("mood-timeout");
+      tryMatchGeneral(io);
+    }
+  }
+
+  // Timeout talkers in mood queues → general queue
+  for (const [moodId, queue] of moodQueues) {
     for (let i = queue.length - 1; i >= 0; i--) {
       if (now - queue[i].joinedAt >= 20000) {
         const user = queue.splice(i, 1)[0];
         generalQueue.push(user);
-        const userSocket = io.sockets.sockets.get(user.socketId);
-        if (userSocket) userSocket.emit("category-timeout");
+        const s = io.sockets.sockets.get(user.socketId);
+        if (s) s.emit("mood-timeout");
         tryMatchGeneral(io);
       }
     }
-    if (queue.length === 0) categoryQueues.delete(categoryId);
+    if (queue.length === 0) moodQueues.delete(moodId);
+  }
+
+  // Timeout topic queue users → general queue
+  for (const [topicId, queue] of topicQueue) {
+    for (let i = queue.length - 1; i >= 0; i--) {
+      if (now - queue[i].joinedAt >= 20000) {
+        const user = queue.splice(i, 1)[0];
+        generalQueue.push(user);
+        const s = io.sockets.sockets.get(user.socketId);
+        if (s) s.emit("mood-timeout");
+        tryMatchGeneral(io);
+      }
+    }
+    if (queue.length === 0) topicQueue.delete(topicId);
   }
 }
 
@@ -357,13 +399,20 @@ function clearRoomTimers(room: ChatRoom) {
 }
 
 function removeFromAllQueues(socketId: string, userId: string) {
-  const gi = generalQueue.findIndex((u) => u.socketId === socketId || u.userId === userId);
+  const match = (u: WaitingUser) => u.socketId === socketId || u.userId === userId;
+  const gi = generalQueue.findIndex(match);
   if (gi !== -1) generalQueue.splice(gi, 1);
-  for (const [, queue] of categoryQueues) {
-    const ci = queue.findIndex((u) => u.socketId === socketId || u.userId === userId);
+  for (const [, queue] of moodQueues) {
+    const ci = queue.findIndex(match);
     if (ci !== -1) queue.splice(ci, 1);
   }
-  const gri = groupQueue.findIndex((u) => u.socketId === socketId || u.userId === userId);
+  const li = listenerQueue.findIndex(match);
+  if (li !== -1) listenerQueue.splice(li, 1);
+  for (const [, queue] of topicQueue) {
+    const ti = queue.findIndex(match);
+    if (ti !== -1) queue.splice(ti, 1);
+  }
+  const gri = groupQueue.findIndex(match);
   if (gri !== -1) groupQueue.splice(gri, 1);
 }
 
@@ -424,7 +473,7 @@ function generateConnectionId(): string {
 // === MAIN SOCKET HANDLER ===
 export function initializeSocket(io: SocketIOServer) {
   setInterval(() => checkGroupQueue(io), 3000);
-  setInterval(() => checkCategoryQueues(io), 5000);
+  setInterval(() => checkMoodQueues(io), 5000);
 
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
@@ -466,8 +515,8 @@ export function initializeSocket(io: SocketIOServer) {
     });
 
     // --- Find Match ---
-    socket.on("find-match", (data: { userId: string; mode: string; category?: string; connectionId?: string }) => {
-      const { userId, mode, category, connectionId } = data;
+    socket.on("find-match", (data: { userId: string; mode: string; mood?: string; topic?: string; connectionId?: string }) => {
+      const { userId, mode, mood, topic, connectionId } = data;
 
       // Rate limit check
       const waitSec = isRateLimitedChat(userId);
@@ -491,11 +540,9 @@ export function initializeSocket(io: SocketIOServer) {
       if (mode === "direct" && connectionId) {
         const waiting = directConnectWaiting.get(connectionId);
         if (waiting && waiting.userId !== userId) {
-          // Partner is already waiting — match them!
           directConnectWaiting.delete(connectionId);
           createSoloRoom(io, waiting, { socketId: socket.id, userId, joinedAt: now });
         } else {
-          // Wait for partner
           directConnectWaiting.set(connectionId, { socketId: socket.id, userId, joinedAt: now });
           socket.emit("waiting", { mode: "direct", connectionId });
         }
@@ -509,24 +556,76 @@ export function initializeSocket(io: SocketIOServer) {
         return;
       }
 
-      if (category) {
-        if (!categoryQueues.has(category)) categoryQueues.set(category, []);
-        const queue = categoryQueues.get(category)!;
+      // Topic matching
+      if (topic) {
+        if (!topicQueue.has(topic)) topicQueue.set(topic, []);
+        const queue = topicQueue.get(topic)!;
         if (queue.length > 0) {
           const partner = queue.shift()!;
           if (partner.userId === userId) {
-            queue.push({ socketId: socket.id, userId, category, joinedAt: now });
-            socket.emit("waiting", { mode: "category", category });
+            queue.push({ socketId: socket.id, userId, joinedAt: now });
+            socket.emit("waiting", { mode: "topic", topic });
             return;
           }
-          createSoloRoom(io, partner, { socketId: socket.id, userId, category, joinedAt: now }, category);
+          createSoloRoom(io, partner, { socketId: socket.id, userId, joinedAt: now }, `topic:${topic}`);
         } else {
-          queue.push({ socketId: socket.id, userId, category, joinedAt: now });
-          socket.emit("waiting", { mode: "category", category });
+          queue.push({ socketId: socket.id, userId, joinedAt: now });
+          socket.emit("waiting", { mode: "topic", topic });
         }
+        if (topicQueue.get(topic)?.length === 0) topicQueue.delete(topic);
         return;
       }
 
+      // Mood matching
+      if (mood) {
+        const isListener = mood === "slusam";
+        if (isListener) {
+          // Listener: try to match with any talker in mood queues immediately
+          for (const [moodId, queue] of moodQueues) {
+            if (queue.length > 0) {
+              const talker = queue.shift()!;
+              if (talker.userId !== userId) {
+                createSoloRoom(io, talker, { socketId: socket.id, userId, joinedAt: now }, moodId);
+                if (queue.length === 0) moodQueues.delete(moodId);
+                return;
+              }
+              queue.unshift(talker); // put back, same user
+            }
+          }
+          // No talker available, wait
+          listenerQueue.push({ socketId: socket.id, userId, joinedAt: now });
+          socket.emit("waiting", { mode: "mood", mood });
+        } else {
+          // Talker: try to match with listener first
+          if (listenerQueue.length > 0) {
+            const listener = listenerQueue.shift()!;
+            if (listener.userId !== userId) {
+              createSoloRoom(io, listener, { socketId: socket.id, userId, joinedAt: now }, mood);
+              return;
+            }
+            listenerQueue.unshift(listener);
+          }
+          // Try same mood queue
+          if (!moodQueues.has(mood)) moodQueues.set(mood, []);
+          const queue = moodQueues.get(mood)!;
+          if (queue.length > 0) {
+            const partner = queue.shift()!;
+            if (partner.userId !== userId) {
+              createSoloRoom(io, partner, { socketId: socket.id, userId, joinedAt: now }, mood);
+              if (queue.length === 0) moodQueues.delete(mood);
+              return;
+            }
+            queue.unshift(partner);
+          }
+          queue.push({ socketId: socket.id, userId, joinedAt: now });
+          socket.emit("waiting", { mode: "mood", mood });
+        }
+        // Track mood usage for stats
+        pendingCategoryUsage.set(mood, (pendingCategoryUsage.get(mood) || 0) + 1);
+        return;
+      }
+
+      // General queue (no mood/topic)
       if (generalQueue.length > 0) {
         const partner = generalQueue.shift()!;
         if (partner.userId === userId) {

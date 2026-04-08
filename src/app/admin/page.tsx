@@ -5,21 +5,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import {
   Users, MessageCircle, Send, ShieldX, UserSearch, UsersRound, Star, Clock, AlertTriangle, CheckCircle, XCircle,
-  Briefcase, Heart, User, Baby, Building2, HeartPulse, Wallet, Handshake, MessageSquare,
+  Flame, CloudRain, Circle, Droplets, Ear, MessageSquare,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  sef: Briefcase, zena: Heart, muz: User, dete: Baby, posao: Building2,
-  porodica: Users, zdravlje: HeartPulse, novac: Wallet, prijatelji: Handshake, ostalo: MessageSquare,
+const MOOD_ICONS: Record<string, LucideIcon> = {
+  besan: Flame, tuzan: CloudRain, prazan: Circle, plakanje: Droplets, slusam: Ear,
 };
-const CATEGORY_LABELS: Record<string, string> = {
-  sef: "Šef", zena: "Žena", muz: "Muž", dete: "Dete", posao: "Posao",
-  porodica: "Porodica", zdravlje: "Zdravlje", novac: "Novac", prijatelji: "Prijatelji", ostalo: "Ostalo",
+const MOOD_LABELS: Record<string, string> = {
+  besan: "Besan", tuzan: "Tužan", prazan: "Prazan", plakanje: "Hoću da se isplačem", slusam: "Hoću da slušam",
 };
-const CATEGORY_COLORS: Record<string, string> = {
-  sef: "#ef4444", zena: "#ec4899", muz: "#3b82f6", dete: "#f59e0b", posao: "#6366f1",
-  porodica: "#10b981", zdravlje: "#14b8a6", novac: "#eab308", prijatelji: "#8b5cf6", ostalo: "#64748b",
+const MOOD_COLORS: Record<string, string> = {
+  besan: "#ef4444", tuzan: "#3b82f6", prazan: "#64748b", plakanje: "#8b5cf6", slusam: "#10b981",
 };
 const REASON_LABELS: Record<string, string> = {
   uvrede: "Uvrede", pretnje: "Pretnje", spam: "Spam", ostalo: "Ostalo",
@@ -157,15 +154,15 @@ export default function AdminPage() {
 
         {/* Categories */}
         <div className="glass-card rounded-2xl p-6">
-          <h2 className="text-lg font-bold mb-4">Kategorije — popularnost</h2>
+          <h2 className="text-lg font-bold mb-4">Raspoloženja — popularnost</h2>
           {stats.categoryStats.length === 0 ? (
-            <p className="text-muted text-sm">Još nema podataka o kategorijama.</p>
+            <p className="text-muted text-sm">Još nema podataka o raspoloženjima.</p>
           ) : (
             <div className="space-y-3">
               {stats.categoryStats.map((cat) => {
-                const Icon = CATEGORY_ICONS[cat.id] || MessageSquare;
-                const label = CATEGORY_LABELS[cat.id] || cat.label;
-                const color = CATEGORY_COLORS[cat.id] || "#64748b";
+                const Icon = MOOD_ICONS[cat.id] || MessageSquare;
+                const label = MOOD_LABELS[cat.id] || cat.label;
+                const color = MOOD_COLORS[cat.id] || "#64748b";
                 const pct = maxCategoryCount > 0 ? (cat.count / maxCategoryCount) * 100 : 0;
                 return (
                   <div key={cat.id} className="flex items-center gap-3">

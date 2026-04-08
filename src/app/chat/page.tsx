@@ -10,7 +10,8 @@ import ChatInput from "@/components/ChatInput";
 import ChatTimer from "@/components/ChatTimer";
 import RatingCard from "@/components/RatingCard";
 import ReportModal from "@/components/ReportModal";
-import { getCategoryById } from "@/lib/categories";
+import { getMoodById } from "@/lib/moods";
+import { getTodaysTopic } from "@/lib/topics";
 import { getGuestId, isGuestId } from "@/lib/guest";
 
 interface Message {
@@ -30,10 +31,10 @@ interface Participant {
 
 const SESSION_KEY = "rnz-active-chat";
 
-function saveSession(data: { roomId: string; mode: string; category?: string }) {
+function saveSession(data: { roomId: string; mode: string; matchLabel?: string }) {
   try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch {}
 }
-function loadSession(): { roomId: string; mode: string; category?: string } | null {
+function loadSession(): { roomId: string; mode: string; matchLabel?: string } | null {
   try { const raw = sessionStorage.getItem(SESSION_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 function clearSession() {
@@ -45,7 +46,8 @@ function ChatContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode") || "solo";
-  const category = searchParams.get("category") || undefined;
+  const mood = searchParams.get("mood") || undefined;
+  const topicParam = searchParams.get("topic") || undefined;
   const connectionIdParam = searchParams.get("connectionId") || undefined;
 
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -57,7 +59,7 @@ function ChatContent() {
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [typingName, setTypingName] = useState("");
   const [isGroup, setIsGroup] = useState(false);
-  const [matchCategory, setMatchCategory] = useState<string | undefined>();
+  const [matchLabel, setMatchLabel] = useState<string | undefined>();
   const [waitingInfo, setWaitingInfo] = useState("");
   const [partnerDisconnected, setPartnerDisconnected] = useState(false);
   const [matchedAt, setMatchedAt] = useState<number>(0);
@@ -106,19 +108,19 @@ function ChatContent() {
         newSocket.emit("rejoin", { userId, roomId: saved.roomId });
       } else {
         setChatState("waiting");
-        newSocket.emit("find-match", { userId, mode, category, connectionId: connectionIdParam });
+        newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam });
       }
     });
 
     newSocket.on("rejoin-success", (data: {
       roomId: string; isGroup: boolean; myPseudonym: string; myColor?: string;
       partnerPseudonym?: string; partnerConnected?: boolean; participants?: Participant[];
-      category?: string; startedAt?: number;
+      category?: string; startedAt?: number; // category stores mood/topic label from server
     }) => {
       roomIdRef.current = data.roomId;
       setMyPseudonym(data.myPseudonym);
       setIsGroup(data.isGroup);
-      setMatchCategory(data.category);
+      setMatchLabel(data.category);
       setChatState("matched");
       setPartnerDisconnected(false);
       if (data.startedAt) setMatchedAt(data.startedAt);
@@ -140,33 +142,35 @@ function ChatContent() {
     newSocket.on("rejoin-failed", () => {
       clearSession();
       setChatState("waiting");
-      newSocket.emit("find-match", { userId, mode, category, connectionId: connectionIdParam });
+      newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam });
     });
 
-    newSocket.on("waiting", (data: { mode: string; category?: string; queueSize?: number; connectionId?: string }) => {
+    newSocket.on("waiting", (data: { mode: string; mood?: string; topic?: string; queueSize?: number; connectionId?: string }) => {
       setChatState("waiting");
       if (data.mode === "direct") {
         setWaitingInfo("Čekamo da se tvoj sagovornik poveže...");
       } else if (data.mode === "group") {
         setWaitingInfo(`Čekamo još ljudi za grupu (${data.queueSize || 1} u redu)...`);
-      } else if (data.mode === "category") {
-        const cat = getCategoryById(data.category || "");
-        setWaitingInfo(cat ? `Tražimo nekog sa temom: ${cat.label}...` : "Tražimo sagovornika...");
+      } else if (data.mode === "mood") {
+        const m = getMoodById(data.mood || "");
+        setWaitingInfo(m ? (m.isListener ? "Tražimo nekoga kome treba razgovor..." : `Tražimo sagovornika za: ${m.label}...`) : "Tražimo sagovornika...");
+      } else if (data.mode === "topic") {
+        setWaitingInfo("Tražimo sagovornika za temu dana...");
       } else {
         setWaitingInfo("Tražimo sagovornika...");
       }
     });
 
-    newSocket.on("category-timeout", () => setWaitingInfo("Niko sa istom temom, tražimo bilo koga..."));
+    newSocket.on("mood-timeout", () => setWaitingInfo("Niko sa istim raspoloženjem, tražimo bilo koga..."));
 
     newSocket.on("matched", (data: {
       roomId: string; isGroup: boolean; myPseudonym: string; myColor?: string;
-      partnerPseudonym?: string; participants?: Participant[]; category?: string;
+      partnerPseudonym?: string; participants?: Participant[]; category?: string; // category stores mood/topic
     }) => {
       roomIdRef.current = data.roomId;
       setMyPseudonym(data.myPseudonym);
       setIsGroup(data.isGroup);
-      setMatchCategory(data.category);
+      setMatchLabel(data.category);
       setChatState("matched");
       setMessages([]);
       setPartnerDisconnected(false);
@@ -181,7 +185,7 @@ function ChatContent() {
       setTimeWarning(false);
       setShowCelebration(false);
 
-      saveSession({ roomId: data.roomId, mode, category });
+      saveSession({ roomId: data.roomId, mode, matchLabel: data.category });
 
       if (data.isGroup && data.participants) {
         setParticipants(data.participants);
@@ -295,7 +299,7 @@ function ChatContent() {
 
     setSocket(newSocket);
     return () => { newSocket.disconnect(); };
-  }, [status, resolvedUserId, mode, category, connectionIdParam]);
+  }, [status, resolvedUserId, mode, mood, topicParam, connectionIdParam]);
 
   const userId = resolvedUserId;
 
@@ -335,8 +339,8 @@ function ChatContent() {
     setTimeLimitRemoved(false);
     setTimeWarning(false);
     setShowCelebration(false);
-    socket.emit("find-match", { userId, mode, category });
-  }, [socket, userId, mode, category]);
+    socket.emit("find-match", { userId, mode, mood });
+  }, [socket, userId, mode, mood]);
 
   const submitRating = useCallback((score: number) => {
     if (socket && roomIdRef.current) socket.emit("submit-rating", { roomId: roomIdRef.current, score });
@@ -382,8 +386,8 @@ function ChatContent() {
   }
 
   if (chatState === "waiting") {
-    const categoryInfo = category ? getCategoryById(category) : null;
-    const CategoryIcon = categoryInfo?.icon;
+    const moodInfo = mood ? getMoodById(mood) : null;
+    const MoodIcon = moodInfo?.icon;
     return (
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
         <div className="bg-orb w-64 h-64 bg-accent top-[20%] left-[20%]" />
@@ -404,10 +408,10 @@ function ChatContent() {
                 {mode === "group" ? <Users className="w-7 h-7 text-accent" /> : <Search className="w-7 h-7 text-accent" />}
               </div>
               <h2 className="text-2xl font-bold mb-2">{waitingInfo || "Tražimo sagovornika..."}</h2>
-              {categoryInfo && CategoryIcon && (
+              {moodInfo && MoodIcon && (
                 <div className="inline-flex items-center gap-2 glass-card rounded-full px-4 py-1.5 mt-2 mb-4">
-                  <CategoryIcon className="w-4 h-4" style={{ color: categoryInfo.color }} />
-                  <span className="text-sm" style={{ color: categoryInfo.color }}>{categoryInfo.label}</span>
+                  <MoodIcon className="w-4 h-4" style={{ color: moodInfo.color }} />
+                  <span className="text-sm" style={{ color: moodInfo.color }}>{moodInfo.label}</span>
                 </div>
               )}
               <p className="text-muted mb-8">Čekamo da se neko pojavi. Neće dugo!</p>
@@ -426,8 +430,13 @@ function ChatContent() {
     );
   }
 
-  const categoryInfo = matchCategory ? getCategoryById(matchCategory) : null;
-  const MatchCategoryIcon = categoryInfo?.icon;
+  // matchLabel can be a mood ID or "topic:id"
+  const isTopic = matchLabel?.startsWith("topic:");
+  const matchMood = !isTopic && matchLabel ? getMoodById(matchLabel) : null;
+  const matchTopic = isTopic ? getTodaysTopic() : null;
+  const MatchIcon = matchMood?.icon || matchTopic?.icon;
+  const matchColor = matchMood?.color || matchTopic?.color;
+  const matchName = matchMood?.label || (matchTopic ? "Tema dana" : null);
 
   return (
     <div className="flex flex-1 flex-col max-w-3xl mx-auto w-full">
@@ -438,9 +447,9 @@ function ChatContent() {
       <div className="border-b border-glass-border px-4 py-2.5 flex items-center justify-between glass-card">
         <div className="flex items-center gap-2 min-w-0">
           {isGroup && <span className="flex-shrink-0 text-xs glass-card rounded-full px-2 py-0.5 text-accent-blue font-medium">Grupa</span>}
-          {categoryInfo && MatchCategoryIcon && (
-            <span className="flex-shrink-0 text-xs glass-card rounded-full px-2 py-0.5 font-medium inline-flex items-center gap-1" style={{ color: categoryInfo.color }}>
-              <MatchCategoryIcon className="w-3 h-3" /> {categoryInfo.label}
+          {matchName && MatchIcon && (
+            <span className="flex-shrink-0 text-xs glass-card rounded-full px-2 py-0.5 font-medium inline-flex items-center gap-1" style={{ color: matchColor }}>
+              <MatchIcon className="w-3 h-3" /> {matchName}
             </span>
           )}
           <div className="min-w-0">
