@@ -92,7 +92,7 @@ function DashboardContent() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold">Gost si</h3>
-                <p className="text-sm text-muted mt-0.5">Napravi nalog za značke, statistiku i "Još pričamo"</p>
+                <p className="text-sm text-muted mt-0.5">Napravi nalog za značke, statistiku i zadržavanje u razgovoru</p>
               </div>
               <button
                 onClick={() => router.push("/register")}

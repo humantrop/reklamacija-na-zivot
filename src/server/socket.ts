@@ -38,7 +38,11 @@ interface ChatRoom {
   category?: string;
   users: RoomUser[];
   startedAt: number;
+  timeLimitRemoved: boolean;
+  expiryTimeout?: ReturnType<typeof setTimeout>;
 }
+
+const CHAT_TIME_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
 
 interface DisconnectedUser {
   userId: string;
@@ -214,7 +218,7 @@ function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
     return { socketId: m.socketId, userId: m.userId, pseudonym, color: GROUP_COLORS[i % GROUP_COLORS.length], connected: true };
   });
 
-  const room: ChatRoom = { roomId, isGroup: true, users, startedAt: Date.now() };
+  const room: ChatRoom = { roomId, isGroup: true, users, startedAt: Date.now(), timeLimitRemoved: false };
   activeRooms.set(roomId, room);
 
   users.forEach((u) => {
@@ -234,6 +238,7 @@ function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
   pendingChatCount++;
   pendingGroupChats++;
   users.forEach((u) => incrementUserChats(u.userId));
+  startRoomTimer(io, roomId);
   console.log(`Group created: ${users.map((u) => u.pseudonym).join(", ")} in ${roomId}`);
 }
 
@@ -272,7 +277,7 @@ function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUs
   while (pseudonym2 === pseudonym1) pseudonym2 = generatePseudonym();
 
   const room: ChatRoom = {
-    roomId, isGroup: false, category, startedAt: Date.now(),
+    roomId, isGroup: false, category, startedAt: Date.now(), timeLimitRemoved: false,
     users: [
       { socketId: user1.socketId, userId: user1.userId, pseudonym: pseudonym1, color: GROUP_COLORS[0], connected: true },
       { socketId: user2.socketId, userId: user2.userId, pseudonym: pseudonym2, color: GROUP_COLORS[1], connected: true },
@@ -303,6 +308,7 @@ function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUs
   if (category) pendingCategoryUsage.set(category, (pendingCategoryUsage.get(category) || 0) + 1);
   incrementUserChats(user1.userId);
   incrementUserChats(user2.userId);
+  startRoomTimer(io, roomId);
   console.log(`Match: ${pseudonym1} <-> ${pseudonym2}${category ? ` [${category}]` : ""}`);
 }
 
@@ -312,6 +318,41 @@ async function incrementUserChats(userId: string) {
     await prisma.user.update({ where: { id: userId }, data: { totalChats: { increment: 1 } } });
   } catch (e) {
     console.error("Failed to increment user chats:", e);
+  }
+}
+
+function startRoomTimer(io: SocketIOServer, roomId: string) {
+  const room = activeRooms.get(roomId);
+  if (!room) return;
+
+  // Warn at 4 min (60s left)
+  const warnTimeout = setTimeout(() => {
+    const r = activeRooms.get(roomId);
+    if (r && !r.timeLimitRemoved) {
+      io.to(roomId).emit("time-warning", { secondsLeft: 60 });
+    }
+  }, CHAT_TIME_LIMIT_MS - 60000);
+
+  // Expire at 5 min
+  const expiryTimeout = setTimeout(() => {
+    const r = activeRooms.get(roomId);
+    if (!r || r.timeLimitRemoved) return;
+    io.to(roomId).emit("time-expired");
+    // Auto-end the room
+    for (const u of [...r.users]) {
+      finalizeLeave(io, u.userId, roomId);
+    }
+  }, CHAT_TIME_LIMIT_MS);
+
+  room.expiryTimeout = expiryTimeout;
+  // Store warn timeout so we can clear it too
+  (room as ChatRoom & { warnTimeout?: ReturnType<typeof setTimeout> }).warnTimeout = warnTimeout;
+}
+
+function clearRoomTimers(room: ChatRoom) {
+  if (room.expiryTimeout) clearTimeout(room.expiryTimeout);
+  if ((room as ChatRoom & { warnTimeout?: ReturnType<typeof setTimeout> }).warnTimeout) {
+    clearTimeout((room as ChatRoom & { warnTimeout?: ReturnType<typeof setTimeout> }).warnTimeout);
   }
 }
 
@@ -346,8 +387,8 @@ function finalizeLeave(io: SocketIOServer, userId: string, roomId: string) {
   if (room.isGroup) {
     io.to(roomId).emit("participant-left", { pseudonym: leaver.pseudonym, remainingCount: room.users.length });
     if (room.users.length <= 1) {
-      // Save for rating
       completedRooms.set(roomId, [...room.users, leaver]);
+      clearRoomTimers(room);
       room.users.forEach((u) => {
         socketToRoom.delete(u.socketId);
         userToRoom.delete(u.userId);
@@ -357,8 +398,8 @@ function finalizeLeave(io: SocketIOServer, userId: string, roomId: string) {
       activeRooms.delete(roomId);
     }
   } else {
-    // Save for rating
     completedRooms.set(roomId, [...room.users, leaver]);
+    clearRoomTimers(room);
     room.users.forEach((u) => {
       socketToRoom.delete(u.socketId);
       userToRoom.delete(u.userId);
@@ -610,7 +651,7 @@ export function initializeSocket(io: SocketIOServer) {
       socket.emit("report-submitted");
     });
 
-    // --- Keep Talking ---
+    // --- Keep Talking (toggle) ---
     socket.on("keep-talking", async (data: { roomId: string }) => {
       const { roomId } = data;
       const room = activeRooms.get(roomId);
@@ -621,24 +662,32 @@ export function initializeSocket(io: SocketIOServer) {
 
       if (!keepTalkingVotes.has(roomId)) keepTalkingVotes.set(roomId, new Set());
       const votes = keepTalkingVotes.get(roomId)!;
-      votes.add(user.userId);
 
-      // Notify others that this user wants to keep talking
+      // Toggle: if already voted, remove vote
+      if (votes.has(user.userId)) {
+        votes.delete(user.userId);
+        socket.to(roomId).emit("partner-cancel-keep-talking", { pseudonym: user.pseudonym });
+        return;
+      }
+
+      votes.add(user.userId);
       socket.to(roomId).emit("partner-keep-talking", { pseudonym: user.pseudonym });
 
       // Check if everyone voted (solo: 2, group: all)
       const requiredVotes = room.isGroup ? room.users.length : 2;
       if (votes.size >= requiredVotes) {
-        // Generate connection ID
+        // Both agreed — remove time limit!
+        room.timeLimitRemoved = true;
+        clearRoomTimers(room);
+
+        // Generate connection ID for reconnecting later
         let connId = generateConnectionId();
-        // Ensure unique
         let existing = await prisma.connection.findUnique({ where: { connectionId: connId } });
         while (existing) {
           connId = generateConnectionId();
           existing = await prisma.connection.findUnique({ where: { connectionId: connId } });
         }
 
-        // Save connection (for solo, use first two users)
         const user1 = room.users[0];
         const user2 = room.users[1] || room.users[0];
         try {
@@ -649,10 +698,10 @@ export function initializeSocket(io: SocketIOServer) {
           console.error("Failed to save connection:", e);
         }
 
-        // Emit to everyone in room
-        io.to(roomId).emit("connection-created", { connectionId: connId });
+        // Emit matched event + connection ID
+        io.to(roomId).emit("keep-talking-matched", { connectionId: connId });
         keepTalkingVotes.delete(roomId);
-        console.log(`Connection created: ${connId} for room ${roomId}`);
+        console.log(`Keep-talking matched! Connection ${connId} for room ${roomId} — time limit removed`);
       }
     });
 

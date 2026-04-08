@@ -32,17 +32,16 @@ export default function Home() {
           >
             <Zap className="w-5 h-5" /> Pričaj odmah
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center gap-3">
             <Link
               href="/register"
               className="glass-card rounded-xl px-6 py-2.5 text-sm font-medium text-muted hover:text-foreground transition-all duration-300 hover:border-accent/30"
             >
               Napravi nalog
             </Link>
-            <span className="text-muted/30">|</span>
             <Link
               href="/login"
-              className="text-sm font-medium text-muted hover:text-foreground transition-colors"
+              className="glass-card rounded-xl px-6 py-2.5 text-sm font-medium text-muted hover:text-foreground transition-all duration-300 hover:border-accent/30"
             >
               Prijavi se
             </Link>

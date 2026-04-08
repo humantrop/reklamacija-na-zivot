@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { io, Socket } from "socket.io-client";
-import { Plug, Users, Search, LogOut, SkipForward, WifiOff, Flag, Heart, Copy, Check } from "lucide-react";
+import { Plug, Users, Search, LogOut, SkipForward, WifiOff, Flag, Heart, Copy, Check, Handshake, Infinity } from "lucide-react";
 import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import ChatTimer from "@/components/ChatTimer";
@@ -77,6 +77,11 @@ function ChatContent() {
 
   // Rate limit
   const [rateLimitMsg, setRateLimitMsg] = useState("");
+
+  // Time limit
+  const [timeLimitRemoved, setTimeLimitRemoved] = useState(false);
+  const [timeWarning, setTimeWarning] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const roomIdRef = useRef<string>("");
 
@@ -172,6 +177,9 @@ function ChatContent() {
       setPartnerKeepTalking(false);
       setConnectionId(null);
       setRateLimitMsg("");
+      setTimeLimitRemoved(false);
+      setTimeWarning(false);
+      setShowCelebration(false);
 
       saveSession({ roomId: data.roomId, mode, category });
 
@@ -244,6 +252,34 @@ function ChatContent() {
       setConnectionId(data.connectionId);
     });
 
+    newSocket.on("partner-cancel-keep-talking", () => {
+      setPartnerKeepTalking(false);
+    });
+
+    newSocket.on("keep-talking-matched", (data: { connectionId: string }) => {
+      setConnectionId(data.connectionId);
+      setTimeLimitRemoved(true);
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 5000);
+    });
+
+    newSocket.on("time-warning", () => {
+      setTimeWarning(true);
+      setMessages((prev) => [...prev, {
+        id: `system_tw_${Date.now()}`, pseudonym: "Sistem",
+        message: "Razgovor se završava za 1 minut. Klikni \"Zadržavanje\" ako želiš da nastaviš.",
+        timestamp: Date.now(), isOwn: false, color: "#f59e0b",
+      }]);
+    });
+
+    newSocket.on("time-expired", () => {
+      setChatState("ended");
+      setPartnerTyping(false);
+      setPartnerDisconnected(false);
+      setShowRating(true);
+      clearSession();
+    });
+
     newSocket.on("rate-limited", (data: { type: string; waitSeconds?: number }) => {
       if (data.type === "chat") {
         setRateLimitMsg(`Previše chatova. Pokušaj ponovo za ${data.waitSeconds || 60}s.`);
@@ -296,6 +332,9 @@ function ChatContent() {
     setPartnerKeepTalking(false);
     setConnectionId(null);
     setRateLimitMsg("");
+    setTimeLimitRemoved(false);
+    setTimeWarning(false);
+    setShowCelebration(false);
     socket.emit("find-match", { userId, mode, category });
   }, [socket, userId, mode, category]);
 
@@ -315,7 +354,7 @@ function ChatContent() {
   const handleKeepTalking = useCallback(() => {
     if (socket && roomIdRef.current) {
       socket.emit("keep-talking", { roomId: roomIdRef.current });
-      setKeepTalkingClicked(true);
+      setKeepTalkingClicked((prev) => !prev);
     }
   }, [socket]);
 
@@ -414,7 +453,7 @@ function ChatContent() {
           {chatState === "ended" && <span className="flex-shrink-0 text-xs text-red-400">(završeno)</span>}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {matchedAt > 0 && chatState === "matched" && <ChatTimer startedAt={matchedAt} />}
+          {matchedAt > 0 && chatState === "matched" && <ChatTimer startedAt={matchedAt} timeLimitRemoved={timeLimitRemoved} />}
           {chatState === "matched" && (
             <>
               <button onClick={() => setShowReport(true)} className="p-1.5 text-muted hover:text-red-400 transition-colors" title="Prijavi korisnika">
@@ -450,8 +489,21 @@ function ChatContent() {
         isGroup={isGroup}
       />
 
+      {/* Celebration popup — mutual keep talking */}
+      {showCelebration && (
+        <div className="border-t border-accent/30 p-4 glass-card">
+          <div className="rounded-xl bg-accent/10 border border-accent/20 p-4 text-center animate-slide-up">
+            <div className="w-12 h-12 rounded-full bg-accent/15 flex items-center justify-center mx-auto mb-3">
+              <Handshake className="w-6 h-6 text-accent" />
+            </div>
+            <p className="text-sm font-semibold text-accent">Obostrano zadržavanje</p>
+            <p className="text-xs text-muted mt-1">Oboje ste odlučili da nastavite. Vremensko ograničenje je ukinuto.</p>
+          </div>
+        </div>
+      )}
+
       {/* Connection ID card */}
-      {connectionId && chatState === "matched" && (
+      {connectionId && chatState === "matched" && !showCelebration && (
         <div className="border-t border-glass-border p-4 glass-card">
           <div className="glass-card rounded-xl p-4 border-accent/30 text-center">
             <p className="text-xs text-muted mb-2">Vaš kod za ponovni susret:</p>
@@ -466,27 +518,42 @@ function ChatContent() {
         </div>
       )}
 
-      {/* Keep talking button — hidden for guests */}
-      {chatState === "matched" && !connectionId && !isGuest && (
-        <div className="border-t border-glass-border px-4 py-2 glass-card flex items-center justify-between">
+      {/* Keep talking bar */}
+      {chatState === "matched" && !timeLimitRemoved && (
+        <div className={`border-t px-4 py-2 glass-card flex items-center justify-between ${timeWarning ? "border-amber-500/30" : "border-glass-border"}`}>
           <div className="flex items-center gap-2">
-            {!keepTalkingClicked ? (
+            {!isGuest ? (
               <button
                 onClick={handleKeepTalking}
-                className="text-xs text-muted hover:text-accent transition-colors inline-flex items-center gap-1"
+                className={`text-xs transition-colors inline-flex items-center gap-1 ${
+                  keepTalkingClicked
+                    ? "text-accent hover:text-muted"
+                    : "text-muted hover:text-accent"
+                }`}
               >
-                <Heart className="w-3.5 h-3.5" /> Još pričamo
+                <Heart className="w-3.5 h-3.5" fill={keepTalkingClicked ? "#8b5cf6" : "none"} />
+                {keepTalkingClicked ? "Zadržavanje uključeno" : "Zadržavanje u razgovoru"}
               </button>
             ) : (
-              <span className="text-xs text-accent inline-flex items-center gap-1">
-                <Heart className="w-3.5 h-3.5" fill="#8b5cf6" /> Čekamo sagovornika...
+              <span className="text-xs text-muted/50 inline-flex items-center gap-1">
+                <Heart className="w-3.5 h-3.5" /> Zadržavanje (samo za korisnike sa nalogom)
               </span>
             )}
             {partnerKeepTalking && !keepTalkingClicked && (
-              <span className="text-xs text-accent-pink animate-pulse">Sagovornik želi da nastavite!</span>
+              <span className="text-xs text-accent-pink animate-pulse">Sagovornik želi da ostane!</span>
             )}
           </div>
-          <span className="text-[10px] text-muted/50">Premium</span>
+          <div className="flex items-center gap-2">
+            {timeWarning && <span className="text-[10px] text-amber-400 animate-pulse">Ističe uskoro</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Time limit removed indicator */}
+      {chatState === "matched" && timeLimitRemoved && !showCelebration && (
+        <div className="border-t border-accent/20 px-4 py-1.5 glass-card flex items-center justify-center gap-1.5">
+          <Infinity className="w-3.5 h-3.5 text-accent" />
+          <span className="text-[10px] text-accent font-medium">Bez vremenskog ograničenja</span>
         </div>
       )}
 
