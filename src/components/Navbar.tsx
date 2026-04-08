@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { Megaphone } from "lucide-react";
+import { Megaphone, Shield } from "lucide-react";
 
 export default function Navbar() {
   const { data: session } = useSession();
+  const role = session?.user ? (session.user as { role?: string }).role : undefined;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-glass-border glass-card">
@@ -19,6 +20,15 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {session ? (
             <>
+              {role === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  className="text-sm text-accent hover:text-accent-hover transition-colors inline-flex items-center gap-1"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  Admin
+                </Link>
+              )}
               <Link
                 href="/dashboard"
                 className="text-sm text-muted hover:text-foreground transition-colors"
