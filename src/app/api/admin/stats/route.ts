@@ -18,10 +18,12 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [totalUsers, stats, categoryStats] = await Promise.all([
+  const [totalUsers, stats, categoryStats, pendingReports, avgRating] = await Promise.all([
     prisma.user.count(),
     prisma.stats.findUnique({ where: { id: "global" } }),
     prisma.categoryStat.findMany({ orderBy: { usageCount: "desc" } }),
+    prisma.report.count({ where: { status: "PENDING" } }),
+    prisma.rating.aggregate({ _avg: { score: true }, _count: true }),
   ]);
 
   return NextResponse.json({
@@ -30,6 +32,10 @@ export async function GET() {
     totalMessages: stats?.totalMessages ?? 0,
     soloChats: stats?.soloChats ?? 0,
     groupChats: stats?.groupChats ?? 0,
+    avgChatDuration: stats?.avgChatDuration ?? 0,
+    totalRatings: avgRating._count,
+    avgRating: avgRating._avg.score ? Math.round(avgRating._avg.score * 10) / 10 : 0,
+    pendingReports,
     categoryStats: categoryStats.map((c) => ({
       id: c.id,
       label: c.label,

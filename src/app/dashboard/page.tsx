@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, EyeOff, Lock } from "lucide-react";
+import { Search, Users, EyeOff, Lock, Link2 } from "lucide-react";
 import CategoryPicker from "@/components/CategoryPicker";
 import AchievementToast from "@/components/AchievementToast";
 import { getCurrentAchievement, getNextAchievement, getProgress } from "@/lib/achievements";
@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [useCategoryMatch, setUseCategoryMatch] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [connectId, setConnectId] = useState("");
   const [stats, setStats] = useState<UserStats>({ totalChats: 0 });
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
 
@@ -183,6 +184,38 @@ export default function DashboardPage() {
               Razgovor sa 3-5 nasumičnih stranaca
             </p>
           </button>
+        </div>
+
+        {/* Find by connection ID */}
+        <div className="glass-card rounded-2xl p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent-pink/10 flex items-center justify-center flex-shrink-0">
+              <Link2 className="w-5 h-5 text-accent-pink" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold">Nađi po kodu</h3>
+              <p className="text-xs text-muted">Unesi kod koji si dobio/la od sagovornika</p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <input
+              type="text"
+              value={connectId}
+              onChange={(e) => setConnectId(e.target.value.toUpperCase())}
+              maxLength={6}
+              placeholder="ABC123"
+              className="flex-1 rounded-xl border border-surface-light bg-background/50 px-4 py-2.5 text-sm text-foreground placeholder-muted/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-colors tracking-widest font-bold text-center uppercase"
+            />
+            <button
+              onClick={() => {
+                if (connectId.length === 6) router.push(`/chat?mode=direct&connectionId=${connectId}`);
+              }}
+              disabled={connectId.length !== 6}
+              className="rounded-xl bg-accent-pink px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              Poveži se
+            </button>
+          </div>
         </div>
 
         {/* Info */}

@@ -12,13 +12,23 @@ enum Role {
   ADMIN
 }
 
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  password   String
-  role       Role     @default(USER)
-  totalChats Int      @default(0)
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  role         Role     @default(USER)
+  totalChats   Int      @default(0)
+  banned       Boolean  @default(false)
+  banReason    String?
+  avgRating    Float    @default(0)
+  totalRatings Int      @default(0)
+  createdAt    DateTime @default(now())
 }
 
 model PasswordReset {
@@ -30,12 +40,44 @@ model PasswordReset {
   createdAt DateTime @default(now())
 }
 
+model Rating {
+  id        String   @id @default(cuid())
+  roomId    String
+  raterId   String
+  ratedId   String
+  score     Int
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  roomId      String
+  reporterId  String
+  reportedId  String
+  reason      String
+  description String?
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+}
+
+model Connection {
+  id           String   @id @default(cuid())
+  connectionId String   @unique
+  user1Id      String
+  user2Id      String
+  roomId       String
+  createdAt    DateTime @default(now())
+}
+
 model Stats {
   id                String   @id @default("global")
   totalChatsCreated Int      @default(0)
   totalMessages     Int      @default(0)
   soloChats         Int      @default(0)
   groupChats        Int      @default(0)
+  totalRatings      Int      @default(0)
+  totalReports      Int      @default(0)
+  avgChatDuration   Int      @default(0)
   updatedAt         DateTime @updatedAt
 }
 
