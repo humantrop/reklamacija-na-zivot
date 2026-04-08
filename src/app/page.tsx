@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EyeOff, MessageCircle, Lock } from "lucide-react";
+import { EyeOff, MessageCircle, Lock, Zap } from "lucide-react";
 
 export default function Home() {
   return (
@@ -25,19 +25,29 @@ export default function Home() {
           razgovaraš sa potpunim strancem — bez imena, bez osude.
         </p>
 
-        <div className="mt-10 flex items-center justify-center gap-4">
+        <div className="mt-10 flex flex-col items-center gap-4">
           <Link
-            href="/register"
-            className="glow-button relative rounded-xl bg-accent px-8 py-3.5 text-base font-semibold text-white hover:bg-accent-hover transition-all duration-300 hover:scale-105"
+            href="/dashboard?guest=1"
+            className="glow-button relative rounded-xl bg-accent px-10 py-4 text-lg font-bold text-white hover:bg-accent-hover transition-all duration-300 hover:scale-105 inline-flex items-center gap-2"
           >
-            Započni razgovor
+            <Zap className="w-5 h-5" /> Pričaj odmah
           </Link>
-          <Link
-            href="/login"
-            className="glass-card rounded-xl px-8 py-3.5 text-base font-semibold text-muted hover:text-foreground transition-all duration-300 hover:border-accent/30"
-          >
-            Već imam nalog
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/register"
+              className="glass-card rounded-xl px-6 py-2.5 text-sm font-medium text-muted hover:text-foreground transition-all duration-300 hover:border-accent/30"
+            >
+              Napravi nalog
+            </Link>
+            <span className="text-muted/30">|</span>
+            <Link
+              href="/login"
+              className="text-sm font-medium text-muted hover:text-foreground transition-colors"
+            >
+              Prijavi se
+            </Link>
+          </div>
+          <p className="text-xs text-muted/60 mt-1">Nalog ti daje značke, statistiku i zaštitu od zloupotrebe</p>
         </div>
       </div>
 

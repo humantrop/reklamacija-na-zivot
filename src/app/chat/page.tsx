@@ -11,6 +11,7 @@ import ChatTimer from "@/components/ChatTimer";
 import RatingCard from "@/components/RatingCard";
 import ReportModal from "@/components/ReportModal";
 import { getCategoryById } from "@/lib/categories";
+import { getGuestId, isGuestId } from "@/lib/guest";
 
 interface Message {
   id: string;
@@ -79,13 +80,19 @@ function ChatContent() {
 
   const roomIdRef = useRef<string>("");
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-  }, [status, router]);
+  // Resolve userId: authenticated user OR guest UUID
+  const resolvedUserId = session?.user
+    ? (session.user as { id: string }).id
+    : getGuestId();
+  const isGuest = isGuestId(resolvedUserId);
+
+  // No redirect for unauthenticated — guests are welcome
 
   useEffect(() => {
-    if (status !== "authenticated" || !session?.user) return;
-    const userId = (session.user as { id: string }).id;
+    if (status === "loading") return;
+    // Wait for auth check to complete, then connect with either real or guest ID
+    const userId = resolvedUserId;
+    if (!userId) return;
     const newSocket = io();
 
     newSocket.on("connect", () => {
@@ -252,9 +259,9 @@ function ChatContent() {
 
     setSocket(newSocket);
     return () => { newSocket.disconnect(); };
-  }, [status, session, mode, category, connectionIdParam]);
+  }, [status, resolvedUserId, mode, category, connectionIdParam]);
 
-  const userId = session?.user ? (session.user as { id: string }).id : "";
+  const userId = resolvedUserId;
 
   const sendMessage = useCallback((message: string) => {
     if (!socket || !roomIdRef.current || !message.trim()) return;
@@ -271,8 +278,8 @@ function ChatContent() {
   const leaveChat = useCallback(() => {
     if (socket && roomIdRef.current) socket.emit("leave-chat", { roomId: roomIdRef.current, userId });
     clearSession();
-    router.push("/dashboard");
-  }, [socket, router, userId]);
+    router.push(isGuest ? "/" : "/dashboard");
+  }, [socket, router, userId, isGuest]);
 
   const nextChat = useCallback(() => {
     if (!socket) return;
@@ -322,7 +329,7 @@ function ChatContent() {
 
   // --- RENDER ---
 
-  if (status === "loading" || chatState === "connecting") {
+  if ((status === "loading" && !isGuest) || chatState === "connecting") {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
@@ -459,8 +466,8 @@ function ChatContent() {
         </div>
       )}
 
-      {/* Keep talking button */}
-      {chatState === "matched" && !connectionId && (
+      {/* Keep talking button — hidden for guests */}
+      {chatState === "matched" && !connectionId && !isGuest && (
         <div className="border-t border-glass-border px-4 py-2 glass-card flex items-center justify-between">
           <div className="flex items-center gap-2">
             {!keepTalkingClicked ? (

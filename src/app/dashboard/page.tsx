@@ -3,17 +3,18 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, EyeOff, Lock, Link2 } from "lucide-react";
+import { Search, Users, EyeOff, Lock, Link2, UserPlus } from "lucide-react";
 import CategoryPicker from "@/components/CategoryPicker";
 import AchievementToast from "@/components/AchievementToast";
 import { getCurrentAchievement, getNextAchievement, getProgress } from "@/lib/achievements";
 import type { Achievement } from "@/lib/achievements";
+import { getGuestId, isGuestId } from "@/lib/guest";
 
 interface UserStats {
   totalChats: number;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [useCategoryMatch, setUseCategoryMatch] = useState(false);
@@ -22,14 +23,16 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<UserStats>({ totalChats: 0 });
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    }
-  }, [status, router]);
+  // Determine if guest: either came via ?guest=1 or has no session and has a guest ID
+  const resolvedUserId = session?.user
+    ? (session.user as { id: string }).id
+    : getGuestId();
+  const isGuest = isGuestId(resolvedUserId);
+
+  // No redirect for guests — they can use the dashboard
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && !isGuest) {
       fetch("/api/user/stats")
         .then((r) => r.json())
         .then((data) => {
@@ -39,7 +42,7 @@ export default function DashboardPage() {
         })
         .catch(() => {});
     }
-  }, [status]);
+  }, [status, isGuest]);
 
   const startChat = useCallback(
     (mode: "solo" | "group") => {
@@ -56,7 +59,7 @@ export default function DashboardPage() {
     setNewAchievement(null);
   }, []);
 
-  if (status === "loading") {
+  if (status === "loading" && !isGuest) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-muted animate-pulse">Učitavanje...</div>
@@ -64,7 +67,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) return null;
+  if (!session && !isGuest) return null;
 
   const currentBadge = getCurrentAchievement(stats.totalChats);
   const nextBadge = getNextAchievement(stats.totalChats);
@@ -80,7 +83,29 @@ export default function DashboardPage() {
       <AchievementToast achievement={newAchievement} onClose={handleCloseAchievement} />
 
       <div className="relative z-10 w-full max-w-2xl space-y-8">
-        {/* Achievement card */}
+        {/* Guest upgrade banner */}
+        {isGuest && (
+          <div className="glass-card rounded-2xl p-5 border-accent/20">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                <UserPlus className="w-6 h-6 text-accent" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold">Gost si</h3>
+                <p className="text-sm text-muted mt-0.5">Napravi nalog za značke, statistiku i "Još pričamo"</p>
+              </div>
+              <button
+                onClick={() => router.push("/register")}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors flex-shrink-0"
+              >
+                Registracija
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Achievement card — only for registered users */}
+        {!isGuest && (
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center gap-4">
             <div
@@ -124,6 +149,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Category toggle */}
         <div className="glass-card rounded-2xl p-6">
@@ -186,8 +212,8 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Find by connection ID */}
-        <div className="glass-card rounded-2xl p-5">
+        {/* Find by connection ID — only for registered users */}
+        {!isGuest && <div className="glass-card rounded-2xl p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-accent-pink/10 flex items-center justify-center flex-shrink-0">
               <Link2 className="w-5 h-5 text-accent-pink" />
@@ -216,7 +242,7 @@ export default function DashboardPage() {
               Poveži se
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* Info */}
         <div className="grid grid-cols-2 gap-3">
@@ -236,4 +262,8 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+export default function DashboardPage() {
+  return <DashboardContent />;
 }

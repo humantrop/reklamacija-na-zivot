@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { Megaphone, Shield } from "lucide-react";
 
 export default function Navbar() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const role = session?.user ? (session.user as { role?: string }).role : undefined;
+
+  // Detect if user is on a guest page (dashboard or chat without session)
+  const isOnGuestPage = !session && (pathname.startsWith("/dashboard") || pathname.startsWith("/chat"));
 
   return (
     <nav className="sticky top-0 z-50 border-b border-glass-border glass-card">
@@ -41,6 +46,21 @@ export default function Navbar() {
               >
                 Odjavi se
               </button>
+            </>
+          ) : isOnGuestPage ? (
+            <>
+              <Link
+                href="/register"
+                className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+              >
+                Napravi nalog
+              </Link>
+              <Link
+                href="/login"
+                className="text-sm text-muted hover:text-foreground transition-colors"
+              >
+                Prijava
+              </Link>
             </>
           ) : (
             <>

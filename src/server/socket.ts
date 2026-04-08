@@ -6,6 +6,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
+function isGuest(userId: string): boolean {
+  return userId.startsWith("guest_");
+}
+
 // Group chat colors for participants
 const GROUP_COLORS = ["#8b5cf6", "#60a5fa", "#f472b6", "#10b981", "#f59e0b"];
 
@@ -303,6 +307,7 @@ function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUs
 }
 
 async function incrementUserChats(userId: string) {
+  if (isGuest(userId)) return;
   try {
     await prisma.user.update({ where: { id: userId }, data: { totalChats: { increment: 1 } } });
   } catch (e) {
@@ -551,13 +556,15 @@ export function initializeSocket(io: SocketIOServer) {
           await prisma.rating.create({
             data: { roomId, raterId: rater.userId, ratedId: partner.userId, score },
           });
-          // Update partner's average rating
-          const allRatings = await prisma.rating.findMany({ where: { ratedId: partner.userId }, select: { score: true } });
-          const avg = allRatings.reduce((s, r) => s + r.score, 0) / allRatings.length;
-          await prisma.user.update({
-            where: { id: partner.userId },
-            data: { avgRating: Math.round(avg * 10) / 10, totalRatings: allRatings.length },
-          });
+          // Update partner's average rating (only for registered users)
+          if (!isGuest(partner.userId)) {
+            const allRatings = await prisma.rating.findMany({ where: { ratedId: partner.userId }, select: { score: true } });
+            const avg = allRatings.reduce((s, r) => s + r.score, 0) / allRatings.length;
+            await prisma.user.update({
+              where: { id: partner.userId },
+              data: { avgRating: Math.round(avg * 10) / 10, totalRatings: allRatings.length },
+            });
+          }
         } catch (e) {
           console.error("Failed to save rating:", e);
         }
@@ -582,16 +589,18 @@ export function initializeSocket(io: SocketIOServer) {
           await prisma.report.create({
             data: { roomId, reporterId: reporter.userId, reportedId: target.userId, reason, description },
           });
-          // Check if auto-ban threshold reached (5 reports)
-          const reportCount = await prisma.report.count({
-            where: { reportedId: target.userId, status: "PENDING" },
-          });
-          if (reportCount >= 5) {
-            await prisma.user.update({
-              where: { id: target.userId },
-              data: { banned: true, banReason: "Automatski ban: previše prijava korisnika" },
+          // Check if auto-ban threshold reached (5 reports) — only for registered users
+          if (!isGuest(target.userId)) {
+            const reportCount = await prisma.report.count({
+              where: { reportedId: target.userId, status: "PENDING" },
             });
-            console.log(`Auto-banned user ${target.userId} (${reportCount} reports)`);
+            if (reportCount >= 5) {
+              await prisma.user.update({
+                where: { id: target.userId },
+                data: { banned: true, banReason: "Automatski ban: previše prijava korisnika" },
+              });
+              console.log(`Auto-banned user ${target.userId} (${reportCount} reports)`);
+            }
           }
         } catch (e) {
           console.error("Failed to save report:", e);
@@ -632,9 +641,13 @@ export function initializeSocket(io: SocketIOServer) {
         // Save connection (for solo, use first two users)
         const user1 = room.users[0];
         const user2 = room.users[1] || room.users[0];
-        await prisma.connection.create({
-          data: { connectionId: connId, user1Id: user1.userId, user2Id: user2.userId, roomId },
-        });
+        try {
+          await prisma.connection.create({
+            data: { connectionId: connId, user1Id: user1.userId, user2Id: user2.userId, roomId },
+          });
+        } catch (e) {
+          console.error("Failed to save connection:", e);
+        }
 
         // Emit to everyone in room
         io.to(roomId).emit("connection-created", { connectionId: connId });

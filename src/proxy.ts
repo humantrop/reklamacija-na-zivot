@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   const token = await getToken({ req: request });
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
   // Redirect authenticated users away from auth pages
   if (
@@ -17,13 +17,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Protect dashboard, chat, and admin routes
-  if (
-    !token &&
-    (pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/chat") ||
-      pathname.startsWith("/admin"))
-  ) {
+  // Dashboard and chat allow guest access (handled client-side with localStorage UUID)
+  // Only admin requires real authentication
+  if (!token && pathname.startsWith("/admin")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
