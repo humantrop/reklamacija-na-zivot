@@ -34,5 +34,13 @@ model Stats {
   id                String   @id @default("global")
   totalChatsCreated Int      @default(0)
   totalMessages     Int      @default(0)
+  soloChats         Int      @default(0)
+  groupChats        Int      @default(0)
   updatedAt         DateTime @updatedAt
+}
+
+model CategoryStat {
+  id         String @id
+  label      String
+  usageCount Int    @default(0)
 }

@@ -18,14 +18,22 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [totalUsers, stats] = await Promise.all([
+  const [totalUsers, stats, categoryStats] = await Promise.all([
     prisma.user.count(),
     prisma.stats.findUnique({ where: { id: "global" } }),
+    prisma.categoryStat.findMany({ orderBy: { usageCount: "desc" } }),
   ]);
 
   return NextResponse.json({
     totalUsers,
     totalChatsCreated: stats?.totalChatsCreated ?? 0,
     totalMessages: stats?.totalMessages ?? 0,
+    soloChats: stats?.soloChats ?? 0,
+    groupChats: stats?.groupChats ?? 0,
+    categoryStats: categoryStats.map((c) => ({
+      id: c.id,
+      label: c.label,
+      count: c.usageCount,
+    })),
   });
 }

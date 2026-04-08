@@ -56,22 +56,46 @@ const DISCONNECT_GRACE_MS = 30000;
 // Stats tracking
 let pendingChatCount = 0;
 let pendingMessageCount = 0;
+let pendingSoloChats = 0;
+let pendingGroupChats = 0;
+const pendingCategoryUsage: Map<string, number> = new Map();
 
 async function flushStats() {
-  if (pendingChatCount === 0 && pendingMessageCount === 0) return;
+  const hasStats = pendingChatCount > 0 || pendingMessageCount > 0 || pendingSoloChats > 0 || pendingGroupChats > 0;
+  const hasCategory = pendingCategoryUsage.size > 0;
+  if (!hasStats && !hasCategory) return;
+
   const chats = pendingChatCount;
   const messages = pendingMessageCount;
+  const solo = pendingSoloChats;
+  const group = pendingGroupChats;
+  const categoryBatch = new Map(pendingCategoryUsage);
   pendingChatCount = 0;
   pendingMessageCount = 0;
+  pendingSoloChats = 0;
+  pendingGroupChats = 0;
+  pendingCategoryUsage.clear();
+
   try {
     await prisma.stats.upsert({
       where: { id: "global" },
-      create: { id: "global", totalChatsCreated: chats, totalMessages: messages },
+      create: { id: "global", totalChatsCreated: chats, totalMessages: messages, soloChats: solo, groupChats: group },
       update: {
         totalChatsCreated: { increment: chats },
         totalMessages: { increment: messages },
+        soloChats: { increment: solo },
+        groupChats: { increment: group },
       },
     });
+
+    // Flush category usage
+    for (const [catId, count] of categoryBatch) {
+      await prisma.categoryStat.upsert({
+        where: { id: catId },
+        create: { id: catId, label: catId, usageCount: count },
+        update: { usageCount: { increment: count } },
+      });
+    }
   } catch (e) {
     console.error("Failed to flush stats:", e);
     pendingChatCount += chats;
@@ -144,6 +168,7 @@ function createGroupRoom(io: SocketIOServer, members: WaitingUser[]) {
   });
 
   pendingChatCount++;
+  pendingGroupChats++;
   users.forEach((u) => incrementUserChats(u.userId));
   console.log(`Group created: ${users.map((u) => u.pseudonym).join(", ")} in ${roomId}`);
 }
@@ -228,6 +253,10 @@ function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUs
   }
 
   pendingChatCount++;
+  pendingSoloChats++;
+  if (category) {
+    pendingCategoryUsage.set(category, (pendingCategoryUsage.get(category) || 0) + 1);
+  }
   incrementUserChats(user1.userId);
   incrementUserChats(user2.userId);
   console.log(`Match: ${pseudonym1} <-> ${pseudonym2}${category ? ` [${category}]` : ""}`);
