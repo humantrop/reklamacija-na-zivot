@@ -3,7 +3,8 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles, Ear, HelpCircle, X, Star, Shield, Clock, Heart, Flame, Handshake, Infinity } from "lucide-react";
+import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles, Ear, HelpCircle, X, Star, Shield, Clock, Heart, Flame, Handshake, Infinity, Trash2, AlertTriangle } from "lucide-react";
+import { signOut } from "next-auth/react";
 import MoodPicker from "@/components/MoodPicker";
 import AchievementToast from "@/components/AchievementToast";
 import { getCurrentAchievement, getNextAchievement, getProgress, listenerBadge } from "@/lib/achievements";
@@ -26,6 +27,8 @@ function DashboardContent() {
   const [stats, setStats] = useState<UserStats>({ totalChats: 0, avgRating: 0, canListen: false });
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Determine if guest: either came via ?guest=1 or has no session and has a guest ID
   const resolvedUserId = session?.user
@@ -160,6 +163,54 @@ function DashboardContent() {
         </div>
       )}
 
+      {/* Delete account confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => !deleting && setShowDeleteConfirm(false)}>
+          <div className="glass-card rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-7 h-7 text-red-400" />
+              </div>
+              <h2 className="text-lg font-bold mb-2">Obriši nalog?</h2>
+              <p className="text-sm text-muted leading-relaxed mb-6">
+                Ova akcija je nepovratna. Svi tvoji podaci, značke, ocene i istorija će biti trajno obrisani.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="flex-1 glass-card rounded-xl py-2.5 text-sm font-medium hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  Otkaži
+                </button>
+                <button
+                  onClick={async () => {
+                    setDeleting(true);
+                    try {
+                      const res = await fetch("/api/user/delete", { method: "DELETE" });
+                      if (res.ok) {
+                        await signOut({ callbackUrl: "/" });
+                      } else {
+                        const data = await res.json();
+                        alert(data.error || "Greška pri brisanju naloga");
+                        setDeleting(false);
+                      }
+                    } catch {
+                      alert("Greška pri brisanju naloga");
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? "Brisanje..." : "Obriši zauvek"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 w-full max-w-[1000px]">
         {/* Help legend button — top of dashboard */}
         <button
@@ -286,6 +337,14 @@ function DashboardContent() {
                   </p>
                 </div>
               </div>
+
+              {/* Delete account */}
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full text-xs text-muted/50 hover:text-red-400 transition-colors py-2 flex items-center justify-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" /> Obriši nalog
+              </button>
             </div>
           </div>
           )}
