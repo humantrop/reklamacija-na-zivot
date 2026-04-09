@@ -2,9 +2,12 @@ import { Server as SocketIOServer } from "socket.io";
 import { generatePseudonym } from "../lib/pseudonyms";
 import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { getToken } from "next-auth/jwt";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
+
+const MAX_MESSAGE_LENGTH = 2000;
 
 function isGuest(userId: string): boolean {
   return userId.startsWith("guest_");
@@ -151,6 +154,14 @@ async function flushStats() {
     console.error("Failed to flush stats:", e);
     pendingChatCount += chats;
     pendingMessageCount += messages;
+    pendingSoloChats += solo;
+    pendingGroupChats += group;
+    pendingRatings += ratings;
+    pendingReports += reports;
+    pendingDurations.push(...durations);
+    for (const [catId, count] of categoryBatch) {
+      pendingCategoryUsage.set(catId, (pendingCategoryUsage.get(catId) || 0) + count);
+    }
   }
 }
 
@@ -480,12 +491,63 @@ export function initializeSocket(io: SocketIOServer) {
   setInterval(() => checkGroupQueue(io), 3000);
   setInterval(() => checkMoodQueues(io), 5000);
 
+  // Cleanup stale directConnectWaiting entries every 60s
+  setInterval(() => {
+    const cutoff = Date.now() - 300_000; // 5 min
+    for (const [id, w] of directConnectWaiting) {
+      if (w.joinedAt < cutoff) directConnectWaiting.delete(id);
+    }
+  }, 60_000);
+
+  // Socket.io auth middleware — extract userId from JWT or assign guest ID
+  io.use(async (socket, next) => {
+    try {
+      // Try to extract JWT from cookie (NextAuth stores session as cookie)
+      const cookieHeader = socket.handshake.headers.cookie || "";
+      // Parse cookies manually
+      const cookies: Record<string, string> = {};
+      cookieHeader.split(";").forEach((c) => {
+        const [key, ...val] = c.trim().split("=");
+        if (key) cookies[key.trim()] = val.join("=");
+      });
+
+      const secret = process.env.NEXTAUTH_SECRET;
+      if (secret) {
+        // Build a minimal request-like object for getToken
+        const token = await getToken({
+          req: { headers: { cookie: cookieHeader } } as Parameters<typeof getToken>[0]["req"],
+          secret,
+        });
+        if (token?.id) {
+          socket.data.userId = token.id as string;
+          return next();
+        }
+      }
+
+      // Fallback: accept client-supplied userId only if it's a guest ID
+      const clientUserId = socket.handshake.auth?.userId as string | undefined;
+      if (clientUserId && isGuest(clientUserId)) {
+        socket.data.userId = clientUserId;
+        return next();
+      }
+
+      // No valid auth — assign new guest ID
+      const crypto = await import("crypto");
+      socket.data.userId = `guest_${crypto.randomUUID()}`;
+      next();
+    } catch {
+      next();
+    }
+  });
+
   io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    const authenticatedUserId: string = socket.data.userId || `guest_${socket.id}`;
+    console.log(`User connected: ${socket.id} (${isGuest(authenticatedUserId) ? "guest" : "auth"})`);
 
     // --- Rejoin ---
-    socket.on("rejoin", (data: { userId: string; roomId: string }) => {
-      const { userId, roomId } = data;
+    socket.on("rejoin", (data: { roomId: string }) => {
+      const userId = authenticatedUserId;
+      const { roomId } = data;
       const pending = disconnectedUsers.get(userId);
       if (pending) { clearTimeout(pending.timeout); disconnectedUsers.delete(userId); }
 
@@ -520,8 +582,9 @@ export function initializeSocket(io: SocketIOServer) {
     });
 
     // --- Find Match ---
-    socket.on("find-match", (data: { userId: string; mode: string; mood?: string; topic?: string; connectionId?: string; listener?: boolean }) => {
-      const { userId, mode, mood, topic, connectionId, listener } = data;
+    socket.on("find-match", (data: { mode: string; mood?: string; topic?: string; connectionId?: string; listener?: boolean }) => {
+      const userId = authenticatedUserId;
+      const { mode, mood, topic, connectionId, listener } = data;
 
       // Rate limit check
       const waitSec = isRateLimitedChat(userId);
@@ -645,8 +708,11 @@ export function initializeSocket(io: SocketIOServer) {
       }
     });
 
-    // --- Send Message (with rate limit) ---
+    // --- Send Message (with rate limit + length check) ---
     socket.on("send-message", (data: { roomId: string; message: string }) => {
+      if (typeof data.message !== "string") return;
+      const trimmed = data.message.slice(0, MAX_MESSAGE_LENGTH);
+      if (!trimmed.trim()) return;
       if (isRateLimitedMessage(socket.id)) {
         socket.emit("rate-limited", { type: "message" });
         return;
@@ -657,7 +723,7 @@ export function initializeSocket(io: SocketIOServer) {
       if (!sender) return;
       pendingMessageCount++;
       socket.to(data.roomId).emit("receive-message", {
-        pseudonym: sender.pseudonym, color: sender.color, message: data.message, timestamp: Date.now(),
+        pseudonym: sender.pseudonym, color: sender.color, message: trimmed, timestamp: Date.now(),
       });
     });
 
@@ -671,12 +737,16 @@ export function initializeSocket(io: SocketIOServer) {
     });
 
     socket.on("stop-typing", (roomId: string) => {
+      const room = activeRooms.get(roomId);
+      if (!room) return;
+      if (!room.users.find((u) => u.socketId === socket.id)) return;
       socket.to(roomId).emit("partner-stop-typing");
     });
 
     // --- Leave Chat ---
-    socket.on("leave-chat", (data: { roomId: string; userId: string }) => {
-      const { roomId, userId } = data;
+    socket.on("leave-chat", (data: { roomId: string }) => {
+      const userId = authenticatedUserId;
+      const { roomId } = data;
       const pending = disconnectedUsers.get(userId);
       if (pending) { clearTimeout(pending.timeout); disconnectedUsers.delete(userId); }
       finalizeLeave(io, userId, roomId);
@@ -694,10 +764,12 @@ export function initializeSocket(io: SocketIOServer) {
       const rater = users.find((u) => u.socketId === socket.id);
       if (!rater) return;
 
-      // Rate all partners (in group, rate everyone)
+      // Rate all partners (in group, rate everyone) — prevent duplicates
       const partners = users.filter((u) => u.userId !== rater.userId);
       for (const partner of partners) {
         try {
+          const existing = await prisma.rating.findFirst({ where: { raterId: rater.userId, roomId } });
+          if (existing) return; // already rated this room
           await prisma.rating.create({
             data: { roomId, raterId: rater.userId, ratedId: partner.userId, score },
           });
@@ -722,6 +794,12 @@ export function initializeSocket(io: SocketIOServer) {
     socket.on("report-user", async (data: { roomId: string; reason: string; description?: string }) => {
       const { roomId, reason, description } = data;
 
+      // Validate inputs
+      const validReasons = ["uvrede", "pretnje", "spam", "ostalo"];
+      if (typeof reason !== "string" || !validReasons.includes(reason)) return;
+      if (description !== undefined && (typeof description !== "string" || description.length > 1000)) return;
+      const safeDescription = description ? description.slice(0, 1000) : undefined;
+
       let users = activeRooms.get(roomId)?.users || completedRooms.get(roomId);
       if (!users) return;
 
@@ -732,7 +810,7 @@ export function initializeSocket(io: SocketIOServer) {
       for (const target of reported) {
         try {
           await prisma.report.create({
-            data: { roomId, reporterId: reporter.userId, reportedId: target.userId, reason, description },
+            data: { roomId, reporterId: reporter.userId, reportedId: target.userId, reason, description: safeDescription },
           });
           // Check if auto-ban threshold reached (5 reports) — only for registered users
           if (!isGuest(target.userId)) {

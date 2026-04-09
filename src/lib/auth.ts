@@ -3,6 +3,10 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET environment variable is not set — refusing to start with insecure sessions");
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({

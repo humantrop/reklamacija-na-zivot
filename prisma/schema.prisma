@@ -47,6 +47,8 @@ model Rating {
   ratedId   String
   score     Int
   createdAt DateTime @default(now())
+
+  @@unique([raterId, roomId])
 }
 
 model Report {

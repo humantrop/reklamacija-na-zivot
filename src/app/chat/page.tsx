@@ -104,15 +104,16 @@ function ChatContent() {
     // Wait for auth check to complete, then connect with either real or guest ID
     const userId = resolvedUserId;
     if (!userId) return;
-    const newSocket = io();
+    // Pass guest userId via socket auth (server extracts JWT for registered users)
+    const newSocket = io({ auth: { userId: isGuest ? userId : undefined } });
 
     newSocket.on("connect", () => {
       const saved = loadSession();
       if (saved?.roomId) {
-        newSocket.emit("rejoin", { userId, roomId: saved.roomId });
+        newSocket.emit("rejoin", { roomId: saved.roomId });
       } else {
         setChatState("waiting");
-        newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam, listener: listenerParam || undefined });
+        newSocket.emit("find-match", { mode, mood, topic: topicParam, connectionId: connectionIdParam, listener: listenerParam || undefined });
       }
     });
 
@@ -146,7 +147,7 @@ function ChatContent() {
     newSocket.on("rejoin-failed", () => {
       clearSession();
       setChatState("waiting");
-      newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam, listener: listenerParam || undefined });
+      newSocket.emit("find-match", { mode, mood, topic: topicParam, connectionId: connectionIdParam, listener: listenerParam || undefined });
     });
 
     newSocket.on("waiting", (data: { mode: string; mood?: string; topic?: string; queueSize?: number; connectionId?: string }) => {
@@ -306,8 +307,6 @@ function ChatContent() {
     return () => { newSocket.disconnect(); };
   }, [status, resolvedUserId, mode, mood, topicParam, connectionIdParam]);
 
-  const userId = resolvedUserId;
-
   const sendMessage = useCallback((message: string) => {
     if (!socket || !roomIdRef.current || !message.trim()) return;
     socket.emit("send-message", { roomId: roomIdRef.current, message: message.trim() });
@@ -321,14 +320,14 @@ function ChatContent() {
   const handleStopTyping = useCallback(() => { if (socket && roomIdRef.current) socket.emit("stop-typing", roomIdRef.current); }, [socket]);
 
   const leaveChat = useCallback(() => {
-    if (socket && roomIdRef.current) socket.emit("leave-chat", { roomId: roomIdRef.current, userId });
+    if (socket && roomIdRef.current) socket.emit("leave-chat", { roomId: roomIdRef.current });
     clearSession();
     router.push(isGuest ? "/" : "/dashboard");
-  }, [socket, router, userId, isGuest]);
+  }, [socket, router, isGuest]);
 
   const nextChat = useCallback(() => {
     if (!socket) return;
-    if (roomIdRef.current) socket.emit("leave-chat", { roomId: roomIdRef.current, userId });
+    if (roomIdRef.current) socket.emit("leave-chat", { roomId: roomIdRef.current });
     clearSession();
     roomIdRef.current = "";
     setChatState("waiting");
@@ -344,8 +343,8 @@ function ChatContent() {
     setTimeLimitRemoved(false);
     setTimeWarning(false);
     setShowCelebration(false);
-    socket.emit("find-match", { userId, mode, mood });
-  }, [socket, userId, mode, mood]);
+    socket.emit("find-match", { mode, mood });
+  }, [socket, mode, mood]);
 
   const submitRating = useCallback((score: number) => {
     if (socket && roomIdRef.current) socket.emit("submit-rating", { roomId: roomIdRef.current, score });

@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   const token = await getToken({ req: request });
-  const { pathname, searchParams } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
   // Redirect authenticated users away from auth pages
   if (
@@ -17,15 +17,28 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Dashboard and chat allow guest access (handled client-side with localStorage UUID)
-  // Only admin requires real authentication
-  if (!token && pathname.startsWith("/admin")) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  // Admin pages and API require authentication + ADMIN role
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+    if (!token) {
+      if (pathname.startsWith("/api/admin")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+    if ((token as { role?: string }).role !== "ADMIN") {
+      if (pathname.startsWith("/api/admin")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/chat/:path*", "/login", "/register", "/forgot-password", "/reset-password", "/admin/:path*"],
+  matcher: [
+    "/dashboard/:path*", "/chat/:path*", "/login", "/register",
+    "/forgot-password", "/reset-password", "/admin/:path*", "/api/admin/:path*",
+  ],
 };

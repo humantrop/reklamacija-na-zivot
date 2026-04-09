@@ -10,7 +10,8 @@ function getResend() {
 }
 
 export async function sendPasswordResetEmail(to: string, token: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = (process.env.NEXTAUTH_URL || "").replace(/\/+$/, "");
+  if (!baseUrl) throw new Error("NEXTAUTH_URL is not configured");
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
   await getResend().emails.send({
