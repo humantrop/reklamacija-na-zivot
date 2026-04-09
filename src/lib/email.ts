@@ -15,7 +15,7 @@ export async function sendPasswordResetEmail(to: string, token: string) {
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
   await getResend().emails.send({
-    from: "Sve će biti OK <onboarding@resend.dev>",
+    from: "Sve će biti OK <noreply@svecebitiok.rs>",
     to,
     subject: "Reset lozinke",
     html: `
