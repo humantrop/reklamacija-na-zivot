@@ -11,8 +11,12 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: (session.user as { id: string }).id },
-    select: { totalChats: true },
+    select: { totalChats: true, avgRating: true, totalRatings: true },
   });
 
-  return NextResponse.json({ totalChats: user?.totalChats ?? 0 });
+  const totalChats = user?.totalChats ?? 0;
+  const avgRating = user?.avgRating ?? 0;
+  const canListen = totalChats >= 10 && avgRating >= 4;
+
+  return NextResponse.json({ totalChats, avgRating, canListen });
 }

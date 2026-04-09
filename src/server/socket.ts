@@ -21,6 +21,7 @@ interface WaitingUser {
   socketId: string;
   userId: string;
   joinedAt: number;
+  isListener?: boolean;
 }
 
 interface RoomUser {
@@ -29,6 +30,7 @@ interface RoomUser {
   pseudonym: string;
   color: string;
   connected: boolean;
+  isListener?: boolean;
 }
 
 interface ChatRoom {
@@ -321,8 +323,8 @@ function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUs
   const room: ChatRoom = {
     roomId, isGroup: false, category, startedAt: Date.now(), timeLimitRemoved: false,
     users: [
-      { socketId: user1.socketId, userId: user1.userId, pseudonym: pseudonym1, color: GROUP_COLORS[0], connected: true },
-      { socketId: user2.socketId, userId: user2.userId, pseudonym: pseudonym2, color: GROUP_COLORS[1], connected: true },
+      { socketId: user1.socketId, userId: user1.userId, pseudonym: pseudonym1, color: GROUP_COLORS[0], connected: true, isListener: user1.isListener },
+      { socketId: user2.socketId, userId: user2.userId, pseudonym: pseudonym2, color: GROUP_COLORS[1], connected: true, isListener: user2.isListener },
     ],
   };
 
@@ -334,15 +336,18 @@ function createSoloRoom(io: SocketIOServer, user1: WaitingUser, user2: WaitingUs
   recordChatStart(user1.userId);
   recordChatStart(user2.userId);
 
+  const partnerIsListener1 = user2.isListener || false;
+  const partnerIsListener2 = user1.isListener || false;
+
   const s1 = io.sockets.sockets.get(user1.socketId);
   if (s1) {
     s1.join(roomId);
-    s1.emit("matched", { roomId, isGroup: false, myPseudonym: pseudonym1, partnerPseudonym: pseudonym2, category });
+    s1.emit("matched", { roomId, isGroup: false, myPseudonym: pseudonym1, partnerPseudonym: pseudonym2, category, partnerIsListener: partnerIsListener1 });
   }
   const s2 = io.sockets.sockets.get(user2.socketId);
   if (s2) {
     s2.join(roomId);
-    s2.emit("matched", { roomId, isGroup: false, myPseudonym: pseudonym2, partnerPseudonym: pseudonym1, category });
+    s2.emit("matched", { roomId, isGroup: false, myPseudonym: pseudonym2, partnerPseudonym: pseudonym1, category, partnerIsListener: partnerIsListener2 });
   }
 
   pendingChatCount++;
@@ -515,8 +520,8 @@ export function initializeSocket(io: SocketIOServer) {
     });
 
     // --- Find Match ---
-    socket.on("find-match", (data: { userId: string; mode: string; mood?: string; topic?: string; connectionId?: string }) => {
-      const { userId, mode, mood, topic, connectionId } = data;
+    socket.on("find-match", (data: { userId: string; mode: string; mood?: string; topic?: string; connectionId?: string; listener?: boolean }) => {
+      const { userId, mode, mood, topic, connectionId, listener } = data;
 
       // Rate limit check
       const waitSec = isRateLimitedChat(userId);
@@ -578,14 +583,14 @@ export function initializeSocket(io: SocketIOServer) {
 
       // Mood matching
       if (mood) {
-        const isListener = mood === "slusam";
-        if (isListener) {
+        const isListenerMood = mood === "slusam" || listener === true;
+        if (isListenerMood) {
           // Listener: try to match with any talker in mood queues immediately
           for (const [moodId, queue] of moodQueues) {
             if (queue.length > 0) {
               const talker = queue.shift()!;
               if (talker.userId !== userId) {
-                createSoloRoom(io, talker, { socketId: socket.id, userId, joinedAt: now }, moodId);
+                createSoloRoom(io, talker, { socketId: socket.id, userId, joinedAt: now, isListener: true }, moodId);
                 if (queue.length === 0) moodQueues.delete(moodId);
                 return;
               }
@@ -593,17 +598,17 @@ export function initializeSocket(io: SocketIOServer) {
             }
           }
           // No talker available, wait
-          listenerQueue.push({ socketId: socket.id, userId, joinedAt: now });
+          listenerQueue.push({ socketId: socket.id, userId, joinedAt: now, isListener: true });
           socket.emit("waiting", { mode: "mood", mood });
         } else {
           // Talker: try to match with listener first
           if (listenerQueue.length > 0) {
-            const listener = listenerQueue.shift()!;
-            if (listener.userId !== userId) {
-              createSoloRoom(io, listener, { socketId: socket.id, userId, joinedAt: now }, mood);
+            const listenerUser = listenerQueue.shift()!;
+            if (listenerUser.userId !== userId) {
+              createSoloRoom(io, listenerUser, { socketId: socket.id, userId, joinedAt: now }, mood);
               return;
             }
-            listenerQueue.unshift(listener);
+            listenerQueue.unshift(listenerUser);
           }
           // Try same mood queue
           if (!moodQueues.has(mood)) moodQueues.set(mood, []);

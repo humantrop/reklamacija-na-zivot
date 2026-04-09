@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { io, Socket } from "socket.io-client";
-import { Plug, Users, Search, LogOut, SkipForward, WifiOff, Flag, Heart, Copy, Check, Handshake, Infinity } from "lucide-react";
+import { Plug, Users, Search, LogOut, SkipForward, WifiOff, Flag, Heart, Copy, Check, Handshake, Infinity, Ear } from "lucide-react";
 import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import ChatTimer from "@/components/ChatTimer";
@@ -49,6 +49,7 @@ function ChatContent() {
   const mood = searchParams.get("mood") || undefined;
   const topicParam = searchParams.get("topic") || undefined;
   const connectionIdParam = searchParams.get("connectionId") || undefined;
+  const listenerParam = searchParams.get("listener") === "1";
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -80,6 +81,9 @@ function ChatContent() {
   // Rate limit
   const [rateLimitMsg, setRateLimitMsg] = useState("");
 
+  // Listener
+  const [partnerIsListener, setPartnerIsListener] = useState(false);
+
   // Time limit
   const [timeLimitRemoved, setTimeLimitRemoved] = useState(false);
   const [timeWarning, setTimeWarning] = useState(false);
@@ -108,7 +112,7 @@ function ChatContent() {
         newSocket.emit("rejoin", { userId, roomId: saved.roomId });
       } else {
         setChatState("waiting");
-        newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam });
+        newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam, listener: listenerParam || undefined });
       }
     });
 
@@ -142,7 +146,7 @@ function ChatContent() {
     newSocket.on("rejoin-failed", () => {
       clearSession();
       setChatState("waiting");
-      newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam });
+      newSocket.emit("find-match", { userId, mode, mood, topic: topicParam, connectionId: connectionIdParam, listener: listenerParam || undefined });
     });
 
     newSocket.on("waiting", (data: { mode: string; mood?: string; topic?: string; queueSize?: number; connectionId?: string }) => {
@@ -165,7 +169,7 @@ function ChatContent() {
 
     newSocket.on("matched", (data: {
       roomId: string; isGroup: boolean; myPseudonym: string; myColor?: string;
-      partnerPseudonym?: string; participants?: Participant[]; category?: string; // category stores mood/topic
+      partnerPseudonym?: string; participants?: Participant[]; category?: string; partnerIsListener?: boolean;
     }) => {
       roomIdRef.current = data.roomId;
       setMyPseudonym(data.myPseudonym);
@@ -184,6 +188,7 @@ function ChatContent() {
       setTimeLimitRemoved(false);
       setTimeWarning(false);
       setShowCelebration(false);
+      setPartnerIsListener(data.partnerIsListener || false);
 
       saveSession({ roomId: data.roomId, mode, matchLabel: data.category });
 
@@ -455,6 +460,7 @@ function ChatContent() {
           <div className="min-w-0">
             <span className="text-sm text-muted">{isGroup ? "Učesnici: " : ""}</span>
             <span className="font-semibold text-accent-blue truncate">{partnerPseudonym}</span>
+            {partnerIsListener && <span className="flex-shrink-0 text-xs text-emerald-400 inline-flex items-center gap-1 ml-1"><Ear className="w-3 h-3" /> Slušalac</span>}
           </div>
           {partnerDisconnected && (
             <span className="flex-shrink-0 text-xs text-amber-400 inline-flex items-center gap-1"><WifiOff className="w-3 h-3" /> offline</span>

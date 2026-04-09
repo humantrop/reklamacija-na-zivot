@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles } from "lucide-react";
+import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles, Ear, HelpCircle, X, Star, Shield, Clock, Heart, Flame, Handshake, Infinity } from "lucide-react";
 import MoodPicker from "@/components/MoodPicker";
 import AchievementToast from "@/components/AchievementToast";
 import { getCurrentAchievement, getNextAchievement, getProgress } from "@/lib/achievements";
@@ -13,6 +13,8 @@ import { getTodaysTopic } from "@/lib/topics";
 
 interface UserStats {
   totalChats: number;
+  avgRating: number;
+  canListen: boolean;
 }
 
 function DashboardContent() {
@@ -21,8 +23,9 @@ function DashboardContent() {
   const [useMoodMatch, setUseMoodMatch] = useState(false);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [connectId, setConnectId] = useState("");
-  const [stats, setStats] = useState<UserStats>({ totalChats: 0 });
+  const [stats, setStats] = useState<UserStats>({ totalChats: 0, avgRating: 0, canListen: false });
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Determine if guest: either came via ?guest=1 or has no session and has a guest ID
   const resolvedUserId = session?.user
@@ -85,6 +88,76 @@ function DashboardContent() {
       <div className="bg-orb w-64 h-64 bg-accent-blue bottom-[10%] left-[-5%]" />
 
       <AchievementToast achievement={newAchievement} onClose={handleCloseAchievement} />
+
+      {/* Help legend modal */}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowHelp(false)}>
+          <div className="glass-card rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold">Kako funkcioniše</h2>
+              <button onClick={() => setShowHelp(false)} className="p-1 text-muted hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-5 text-sm">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-1.5"><EyeOff className="w-4 h-4 text-accent" /> Anonimnost</h3>
+                <p className="text-muted leading-relaxed">Tvoj identitet je potpuno skriven. Sagovornici vide samo nasumično generisan pseudonim. Poruke se ne čuvaju — kad razgovor završi, sve nestaje.</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-1.5"><Search className="w-4 h-4 text-accent" /> Sparivanje</h3>
+                <p className="text-muted leading-relaxed">Možeš birati 1-na-1 ili grupni razgovor. Ako izabereš raspoloženje, sparujemo te sa nekim sličnim. "Hoću da slušam" korisnici se automatski sparuju sa onima kojima treba razgovor.</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-1.5"><Clock className="w-4 h-4 text-amber-400" /> Vremenski limit</h3>
+                <p className="text-muted leading-relaxed">Svaki razgovor traje maksimum 5 minuta. Na 4 minuta dobijaš upozorenje. Ako oba sagovornika kliknu "Zadržavanje u razgovoru" — limit se uklanja i možete pričati koliko hoćete.</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-1.5"><Heart className="w-4 h-4 text-accent" /> Zadržavanje</h3>
+                <p className="text-muted leading-relaxed">Klikni "Zadržavanje u razgovoru" tokom chata. Ako i sagovornik klikne — dobijate 6-cifreni kod za ponovni susret. Koristi kod na početnoj u sekciji "Nađi po kodu".</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-2">
+                  <Star className="w-4 h-4 text-amber-400" /> Značke
+                </h3>
+                <div className="space-y-1.5">
+                  {[
+                    { name: "Novajlija", chats: "0", color: "#6b7280" },
+                    { name: "Početnik", chats: "1+", color: "#10b981" },
+                    { name: "Društvenjak", chats: "5+", color: "#3b82f6" },
+                    { name: "Veteran", chats: "15+", color: "#f59e0b" },
+                    { name: "Legenda", chats: "50+", color: "#8b5cf6" },
+                    { name: "Vladar reklamacija", chats: "100+", color: "#ef4444" },
+                  ].map((b) => (
+                    <div key={b.name} className="flex items-center justify-between rounded-lg bg-surface/50 px-3 py-1.5">
+                      <span className="font-medium" style={{ color: b.color }}>{b.name}</span>
+                      <span className="text-xs text-muted">{b.chats} razgovora</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-1.5"><Ear className="w-4 h-4 text-emerald-400" /> Režim slušaoca</h3>
+                <p className="text-muted leading-relaxed">Korisnici sa prosečnom ocenom 4+ i 10+ razgovora mogu aktivirati "Ovde sam da slušam". Slušaoci imaju prioritet u sparivanju i dobijaju posebnu značku u chatu.</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-1.5"><Sparkles className="w-4 h-4 text-amber-400" /> Tema dana</h3>
+                <p className="text-muted leading-relaxed">Svaki dan nova tema za razgovor. Klikni "Pridruži se temi" da se sparuješ sa nekim ko želi da priča o istom.</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-1.5"><Shield className="w-4 h-4 text-red-400" /> Prijava i zaštita</h3>
+                <p className="text-muted leading-relaxed">Ako neko krši pravila, klikni zastavu u chatu da prijaviš. Posle 5 prijava korisnik se automatski banuje. Poštuj druge — anonimnost ne znači bezobrazluk.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 w-full max-w-2xl space-y-8">
         {/* Guest upgrade banner */}
@@ -242,6 +315,29 @@ function DashboardContent() {
           </button>
         </div>
 
+        {/* Listener mode — only for qualified registered users */}
+        {!isGuest && stats.canListen && (
+          <button
+            onClick={() => router.push("/chat?mode=solo&mood=slusam&listener=1")}
+            className="glow-button w-full group glass-card rounded-2xl p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/40"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
+                <Ear className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-emerald-400">Ovde sam da slušam</h3>
+                  <span className="text-[10px] font-medium bg-emerald-500/10 text-emerald-400 rounded-full px-2 py-0.5">Slušalac</span>
+                </div>
+                <p className="text-sm text-muted mt-0.5">
+                  Imaš ocenu {stats.avgRating}/5 i {stats.totalChats} razgovora — pomozi nekome danas
+                </p>
+              </div>
+            </div>
+          </button>
+        )}
+
         {/* Find by connection ID — only for registered users */}
         {!isGuest && <div className="glass-card rounded-2xl p-5">
           <div className="flex items-center gap-3">
@@ -274,7 +370,7 @@ function DashboardContent() {
           </div>
         </div>}
 
-        {/* Info */}
+        {/* Info + Help */}
         <div className="grid grid-cols-2 gap-3">
           <div className="glass-card rounded-xl p-4">
             <p className="text-sm text-muted flex items-center gap-2">
@@ -289,6 +385,13 @@ function DashboardContent() {
             </p>
           </div>
         </div>
+
+        <button
+          onClick={() => setShowHelp(true)}
+          className="w-full glass-card rounded-xl p-3 text-sm text-muted hover:text-foreground transition-colors flex items-center justify-center gap-2"
+        >
+          <HelpCircle className="w-4 h-4" /> Kako funkcioniše aplikacija?
+        </button>
       </div>
     </div>
   );
