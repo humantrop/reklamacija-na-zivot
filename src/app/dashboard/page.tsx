@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles, Ear, HelpCircle, X, Star, Shield, Clock, Heart, Flame, Handshake, Infinity } from "lucide-react";
 import MoodPicker from "@/components/MoodPicker";
 import AchievementToast from "@/components/AchievementToast";
-import { getCurrentAchievement, getNextAchievement, getProgress } from "@/lib/achievements";
+import { getCurrentAchievement, getNextAchievement, getProgress, listenerBadge } from "@/lib/achievements";
 import type { Achievement } from "@/lib/achievements";
 import { getGuestId, isGuestId } from "@/lib/guest";
 import { getTodaysTopic } from "@/lib/topics";
@@ -126,11 +126,12 @@ function DashboardContent() {
                 <div className="space-y-1.5">
                   {[
                     { name: "Novajlija", chats: "0", color: "#6b7280" },
-                    { name: "Početnik", chats: "1+", color: "#10b981" },
-                    { name: "Društvenjak", chats: "5+", color: "#3b82f6" },
-                    { name: "Veteran", chats: "15+", color: "#f59e0b" },
-                    { name: "Legenda", chats: "50+", color: "#8b5cf6" },
-                    { name: "Vladar reklamacija", chats: "100+", color: "#ef4444" },
+                    { name: "Početnik", chats: "20+", color: "#10b981" },
+                    { name: "Društvenjak", chats: "50+", color: "#3b82f6" },
+                    { name: "Veteran", chats: "120+", color: "#f59e0b" },
+                    { name: "Legenda", chats: "250+", color: "#8b5cf6" },
+                    { name: "Vladar reklamacija", chats: "500+", color: "#ef4444" },
+                    { name: "Slušalac", chats: "ocena 4+ & 10+ razgovora", color: "#10b981" },
                   ].map((b) => (
                     <div key={b.name} className="flex items-center justify-between rounded-lg bg-surface/50 px-3 py-1.5">
                       <span className="font-medium" style={{ color: b.color }}>{b.name}</span>
@@ -203,9 +204,16 @@ function DashboardContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted font-medium uppercase tracking-wider">Tvoja značka</p>
-                  <p className="text-lg font-bold" style={{ color: currentBadge.color }}>
-                    {currentBadge.name}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold" style={{ color: currentBadge.color }}>
+                      {currentBadge.name}
+                    </p>
+                    {stats.canListen && (
+                      <span className="text-[10px] font-medium bg-emerald-500/10 text-emerald-400 rounded-full px-2 py-0.5 flex items-center gap-1">
+                        <Ear className="w-3 h-3" /> Slušalac
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold">{stats.totalChats}</p>
