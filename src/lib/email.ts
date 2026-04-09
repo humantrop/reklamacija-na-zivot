@@ -15,7 +15,7 @@ export async function sendPasswordResetEmail(to: string, token: string) {
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
   await getResend().emails.send({
-    from: "Reklamacija na Život <onboarding@resend.dev>",
+    from: "Sve će biti OK <onboarding@resend.dev>",
     to,
     subject: "Reset lozinke",
     html: `
@@ -31,7 +31,7 @@ export async function sendPasswordResetEmail(to: string, token: string) {
           Link važi 1 sat. Ako nisi ti tražio/la promenu lozinke, ignoriši ovaj email.
         </p>
         <hr style="border: none; border-top: 1px solid #1e1e3f; margin: 24px 0;" />
-        <p style="color: #64748b; font-size: 12px;">Reklamacija na Život</p>
+        <p style="color: #64748b; font-size: 12px;">Sve će biti OK</p>
       </div>
     `,
   });

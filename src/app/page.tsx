@@ -15,9 +15,9 @@ export default function Home() {
         </div>
 
         <h1 className="text-5xl font-bold tracking-tight sm:text-7xl leading-[1.1]">
-          <span className="gradient-text">Reklamacija</span>
+          <span className="gradient-text">Sve će biti</span>
           <br />
-          na Život
+          OK
         </h1>
 
         <p className="mt-6 text-lg leading-8 text-muted max-w-lg mx-auto">

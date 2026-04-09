@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { Megaphone, Shield } from "lucide-react";
+import { Heart, Shield } from "lucide-react";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -17,9 +17,9 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-glass-border glass-card">
       <div className="mx-auto max-w-5xl flex items-center justify-between px-6 py-3.5">
         <Link href="/" className="flex items-center gap-2 group">
-          <Megaphone className="w-5 h-5 text-accent" />
+          <Heart className="w-5 h-5 text-accent" />
           <span className="text-lg font-bold tracking-tight gradient-text group-hover:opacity-80 transition-opacity">
-            reklamacija
+            sve će biti ok
           </span>
         </Link>
         <div className="flex items-center gap-3">

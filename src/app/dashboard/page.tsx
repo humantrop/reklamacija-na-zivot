@@ -133,7 +133,7 @@ function DashboardContent() {
                     { name: "Društvenjak", chats: "50+", color: "#3b82f6" },
                     { name: "Veteran", chats: "120+", color: "#f59e0b" },
                     { name: "Legenda", chats: "250+", color: "#8b5cf6" },
-                    { name: "Vladar reklamacija", chats: "500+", color: "#ef4444" },
+                    { name: "Legendarni sagovornik", chats: "500+", color: "#ef4444" },
                     { name: "Slušalac", chats: "ocena 4+ & 10+ razgovora", color: "#10b981" },
                   ].map((b) => (
                     <div key={b.name} className="flex items-center justify-between rounded-lg bg-surface/50 px-3 py-1.5">

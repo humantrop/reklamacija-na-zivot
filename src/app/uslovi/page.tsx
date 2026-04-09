@@ -15,7 +15,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-3">1. Prihvatanje uslova</h2>
             <p>
-              Korišćenjem aplikacije Reklamacija na Život prihvataš ove Uslove korišćenja
+              Korišćenjem aplikacije Sve će biti OK prihvataš ove Uslove korišćenja
               u celosti. Ako se ne slažeš sa bilo kojim delom ovih uslova, nemoj koristiti
               aplikaciju.
             </p>
@@ -24,7 +24,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-3">2. Opis usluge</h2>
             <p>
-              Reklamacija na Život je besplatna anonimna chat platforma koja povezuje
+              Sve će biti OK je besplatna anonimna chat platforma koja povezuje
               korisnike sa nasumično odabranim sagovornicima. Aplikacija je namenjena za
               neobavezne razgovore i podršku — nije zamena za profesionalnu psihološku
               ili medicinsku pomoć.

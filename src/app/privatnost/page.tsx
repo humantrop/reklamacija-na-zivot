@@ -15,7 +15,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-3">1. Uvod</h2>
             <p>
-              Reklamacija na Život (&ldquo;mi&rdquo;, &ldquo;naša aplikacija&rdquo;) je anonimna chat platforma
+              Sve će biti OK (&ldquo;mi&rdquo;, &ldquo;naša aplikacija&rdquo;) je anonimna chat platforma
               koja omogućava korisnicima da razgovaraju sa nasumično odabranim sagovornicima.
               Ova Politika privatnosti objašnjava koje podatke prikupljamo, kako ih koristimo
               i kako ih štitimo.

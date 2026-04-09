@@ -11,9 +11,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Reklamacija na Život",
+  title: "Sve će biti OK",
   description:
-    "Anonimno se požali nekom strancu. Bez imena, bez osude, bez tragova.",
+    "Anonimno razgovaraj sa nekim ko te razume. Bez imena, bez osude, bez tragova.",
 };
 
 export default function RootLayout({
