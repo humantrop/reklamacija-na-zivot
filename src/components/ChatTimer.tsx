@@ -20,10 +20,11 @@ export default function ChatTimer({ startedAt, timeLimitRemoved }: ChatTimerProp
     return () => clearInterval(interval);
   }, [startedAt]);
 
-  const mins = Math.floor(elapsed / 60).toString().padStart(2, "0");
-  const secs = (elapsed % 60).toString().padStart(2, "0");
+  const remaining = Math.max(0, TIME_LIMIT_SECONDS - elapsed);
+  const displaySeconds = timeLimitRemoved ? elapsed : remaining;
+  const mins = Math.floor(displaySeconds / 60).toString().padStart(2, "0");
+  const secs = (displaySeconds % 60).toString().padStart(2, "0");
 
-  const remaining = TIME_LIMIT_SECONDS - elapsed;
   const isLow = !timeLimitRemoved && remaining <= 60 && remaining > 0;
 
   return (

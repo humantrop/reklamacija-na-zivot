@@ -13,7 +13,7 @@ const MOOD_ICONS: Record<string, LucideIcon> = {
   besan: Flame, tuzan: CloudRain, prazan: Circle, plakanje: Droplets, slusam: Ear,
 };
 const MOOD_LABELS: Record<string, string> = {
-  besan: "Besan", tuzan: "Tužan", prazan: "Prazan", plakanje: "Hoću da se isplačem", slusam: "Hoću da slušam",
+  besan: "Besan", tuzan: "Tužan", prazan: "Prazan", plakanje: "Hoću da se isplačem", slusam: "Hoću da saslušam",
 };
 const MOOD_COLORS: Record<string, string> = {
   besan: "#ef4444", tuzan: "#3b82f6", prazan: "#64748b", plakanje: "#8b5cf6", slusam: "#10b981",

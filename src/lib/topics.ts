@@ -6,6 +6,16 @@ import {
   Milestone,
   Flame,
   BookOpen,
+  Users,
+  Shield,
+  Moon,
+  MapPin,
+  MessageCircle,
+  Puzzle,
+  ThumbsUp,
+  Feather,
+  Brain,
+  Home,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +34,16 @@ const topics: DailyTopic[] = [
   { id: "prekretnica", prompt: "Koji trenutak ti je promenio život a nisi ga odmah prepoznao/la?", icon: Milestone, color: "#3b82f6" },
   { id: "bes", prompt: "Šta te najviše nervira a svi se prave da je normalno?", icon: Flame, color: "#ef4444" },
   { id: "lekcija", prompt: "Koja životna lekcija te je najskuplje koštala?", icon: BookOpen, color: "#10b981" },
+  { id: "prijatelj", prompt: "Da li si ikad izgubio/la najboljeg prijatelja? Šta se desilo?", icon: Users, color: "#6366f1" },
+  { id: "granica", prompt: "Koja granica ti je bilo najteže da postaviš?", icon: Shield, color: "#14b8a6" },
+  { id: "noc", prompt: "Šta te drži budnim/om noću kad svi zaspe?", icon: Moon, color: "#7c3aed" },
+  { id: "mesto", prompt: "Koje mesto te podseća na osobu koju pokušavaš da zaboraviš?", icon: MapPin, color: "#f97316" },
+  { id: "cutanje", prompt: "Šta nikad nisi rekao/la osobi kojoj si trebao/la?", icon: MessageCircle, color: "#0ea5e9" },
+  { id: "identitet", prompt: "Šta si morao/la da odglumis da bi se uklopio/la?", icon: Puzzle, color: "#d946ef" },
+  { id: "pohvala", prompt: "Kad si poslednji put bio/la ponosan/na na sebe — i zašto?", icon: ThumbsUp, color: "#22c55e" },
+  { id: "teret", prompt: "Koji teret nosiš a niko ne zna da ga imaš?", icon: Feather, color: "#64748b" },
+  { id: "odluka", prompt: "Koja odluka ti je promenila sve, a doneo/la si je u sekundi?", icon: Brain, color: "#e11d48" },
+  { id: "dom", prompt: "Šta za tebe znači 'dom' — i da li ga imaš?", icon: Home, color: "#a855f7" },
 ];
 
 export function getTodaysTopic(): DailyTopic {

@@ -106,7 +106,7 @@ function DashboardContent() {
 
               <div>
                 <h3 className="font-semibold flex items-center gap-2 mb-1.5"><Search className="w-4 h-4 text-accent" /> Sparivanje</h3>
-                <p className="text-muted leading-relaxed">Možeš birati 1-na-1 ili grupni razgovor. Ako izabereš raspoloženje, sparujemo te sa nekim sličnim. "Hoću da slušam" korisnici se automatski sparuju sa onima kojima treba razgovor.</p>
+                <p className="text-muted leading-relaxed">Možeš birati 1-na-1 ili grupni razgovor. Ako izabereš raspoloženje, sparujemo te sa nekim sličnim. "Hoću da saslušam" korisnici se automatski sparuju sa onima kojima treba razgovor.</p>
               </div>
 
               <div>
@@ -160,6 +160,14 @@ function DashboardContent() {
       )}
 
       <div className="relative z-10 w-full max-w-2xl space-y-8">
+        {/* Help legend button — top of dashboard */}
+        <button
+          onClick={() => setShowHelp(true)}
+          className="w-full glass-card rounded-xl p-3 text-sm text-muted hover:text-foreground transition-colors flex items-center justify-center gap-2"
+        >
+          <HelpCircle className="w-4 h-4" /> Kako funkcioniše aplikacija?
+        </button>
+
         {/* Guest upgrade banner */}
         {isGuest && (
           <div className="glass-card rounded-2xl p-5 border-accent/20">
@@ -386,12 +394,6 @@ function DashboardContent() {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowHelp(true)}
-          className="w-full glass-card rounded-xl p-3 text-sm text-muted hover:text-foreground transition-colors flex items-center justify-center gap-2"
-        >
-          <HelpCircle className="w-4 h-4" /> Kako funkcioniše aplikacija?
-        </button>
       </div>
     </div>
   );
