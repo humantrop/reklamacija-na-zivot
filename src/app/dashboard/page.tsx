@@ -223,20 +223,20 @@ function DashboardContent() {
         {/* Guest upgrade banner */}
         {isGuest && (
           <div className="glass-card rounded-2xl p-5 border-accent/20 mb-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
                 <UserPlus className="w-6 h-6 text-accent" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold">Gost si</h3>
                 <p className="text-sm text-muted mt-0.5">Napravi nalog za značke, statistiku i zadržavanje u razgovoru</p>
+                <button
+                  onClick={() => router.push("/register")}
+                  className="mt-3 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+                >
+                  Registracija
+                </button>
               </div>
-              <button
-                onClick={() => router.push("/register")}
-                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors flex-shrink-0"
-              >
-                Registracija
-              </button>
             </div>
           </div>
         )}
