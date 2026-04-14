@@ -32,6 +32,7 @@ export default function Home() {
           >
             <Zap className="w-5 h-5" /> Pričaj odmah
           </Link>
+          <p className="text-sm text-muted/70">Ili ukoliko želiš</p>
           <div className="flex items-center justify-center gap-3">
             <Link
               href="/register"
