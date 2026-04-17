@@ -28,7 +28,7 @@ export const categories: Category[] = [
   { id: "porodica", label: "Porodica", icon: Users, color: "#10b981" },
   { id: "zdravlje", label: "Zdravlje", icon: HeartPulse, color: "#14b8a6" },
   { id: "novac", label: "Novac", icon: Wallet, color: "#eab308" },
-  { id: "prijatelji", label: "Prijatelji", icon: Handshake, color: "#8b5cf6" },
+  { id: "prijatelji", label: "Prijatelji", icon: Handshake, color: "#6366f1" },
   { id: "ostalo", label: "Ostalo", icon: MessageSquare, color: "#64748b" },
 ];
 

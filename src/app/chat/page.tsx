@@ -254,7 +254,7 @@ function ChatContent() {
       setMessages((prev) => [...prev, {
         id: `system_kt_${Date.now()}`, pseudonym: "Sistem",
         message: `${data.pseudonym} želi da nastavite razgovor!`,
-        timestamp: Date.now(), isOwn: false, color: "#8b5cf6",
+        timestamp: Date.now(), isOwn: false, color: "#3b82f6",
       }]);
     });
 
@@ -545,7 +545,7 @@ function ChatContent() {
                     : "text-muted hover:text-accent"
                 }`}
               >
-                <Heart className="w-3.5 h-3.5" fill={keepTalkingClicked ? "#8b5cf6" : "none"} />
+                <Heart className="w-3.5 h-3.5" fill={keepTalkingClicked ? "#3b82f6" : "none"} />
                 {keepTalkingClicked ? "Zadržavanje uključeno" : "Zadržavanje u razgovoru"}
               </button>
             ) : (

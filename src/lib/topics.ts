@@ -27,7 +27,7 @@ export interface DailyTopic {
 }
 
 const topics: DailyTopic[] = [
-  { id: "proslost", prompt: "Šta bi rekao/la sebi od pre 5 godina?", icon: Clock, color: "#8b5cf6" },
+  { id: "proslost", prompt: "Šta bi rekao/la sebi od pre 5 godina?", icon: Clock, color: "#3b82f6" },
   { id: "strah", prompt: "Čega se najviše plašiš a nikad nisi rekao/la naglas?", icon: Compass, color: "#ef4444" },
   { id: "san", prompt: "Koji san si tiho odustao/la da juriš?", icon: Lightbulb, color: "#f59e0b" },
   { id: "oprostaj", prompt: "Kome bi oprostio/la kada bi mogao/la?", icon: HeartHandshake, color: "#ec4899" },
@@ -36,7 +36,7 @@ const topics: DailyTopic[] = [
   { id: "lekcija", prompt: "Koja životna lekcija te je najskuplje koštala?", icon: BookOpen, color: "#10b981" },
   { id: "prijatelj", prompt: "Da li si ikad izgubio/la najboljeg prijatelja? Šta se desilo?", icon: Users, color: "#6366f1" },
   { id: "granica", prompt: "Koja granica ti je bilo najteže da postaviš?", icon: Shield, color: "#14b8a6" },
-  { id: "noc", prompt: "Šta te drži budnim/om noću kad svi zaspe?", icon: Moon, color: "#7c3aed" },
+  { id: "noc", prompt: "Šta te drži budnim/om noću kad svi zaspe?", icon: Moon, color: "#6366f1" },
   { id: "mesto", prompt: "Koje mesto te podseća na osobu koju pokušavaš da zaboraviš?", icon: MapPin, color: "#f97316" },
   { id: "cutanje", prompt: "Šta nikad nisi rekao/la osobi kojoj si trebao/la?", icon: MessageCircle, color: "#0ea5e9" },
   { id: "identitet", prompt: "Šta si morao/la da odglumis da bi se uklopio/la?", icon: Puzzle, color: "#d946ef" },

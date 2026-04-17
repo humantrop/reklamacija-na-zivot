@@ -14,7 +14,7 @@ function isGuest(userId: string): boolean {
 }
 
 // Group chat colors for participants
-const GROUP_COLORS = ["#8b5cf6", "#60a5fa", "#f472b6", "#10b981", "#f59e0b"];
+const GROUP_COLORS = ["#3b82f6", "#60a5fa", "#f472b6", "#10b981", "#f59e0b"];
 
 // --- Rate Limiting Config ---
 const MAX_CHATS_PER_HOUR = 15;

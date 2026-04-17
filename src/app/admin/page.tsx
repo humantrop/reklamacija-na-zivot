@@ -16,7 +16,7 @@ const MOOD_LABELS: Record<string, string> = {
   besan: "Besan/na", tuzan: "Tužan/na", prazan: "Prazan/na", plakanje: "Hoću da se isplačem", slusam: "Hoću da saslušam",
 };
 const MOOD_COLORS: Record<string, string> = {
-  besan: "#ef4444", tuzan: "#3b82f6", prazan: "#64748b", plakanje: "#8b5cf6", slusam: "#10b981",
+  besan: "#ef4444", tuzan: "#3b82f6", prazan: "#64748b", plakanje: "#6366f1", slusam: "#10b981",
 };
 const REASON_LABELS: Record<string, string> = {
   uvrede: "Uvrede", pretnje: "Pretnje", spam: "Spam", ostalo: "Ostalo",
@@ -90,7 +90,7 @@ export default function AdminPage() {
   if (!stats) return null;
 
   const topCards: { label: string; value: string; icon: LucideIcon; color: string }[] = [
-    { label: "Korisnici", value: stats.totalUsers.toLocaleString(), icon: Users, color: "#8b5cf6" },
+    { label: "Korisnici", value: stats.totalUsers.toLocaleString(), icon: Users, color: "#3b82f6" },
     { label: "Ukupno chatova", value: stats.totalChatsCreated.toLocaleString(), icon: MessageCircle, color: "#3b82f6" },
     { label: "Poruke", value: stats.totalMessages.toLocaleString(), icon: Send, color: "#10b981" },
     { label: "Prosečna ocena", value: stats.avgRating > 0 ? `${stats.avgRating}/5` : "—", icon: Star, color: "#f59e0b" },
@@ -141,7 +141,7 @@ export default function AdminPage() {
           {stats.totalChatsCreated > 0 && (
             <div className="mt-4">
               <div className="h-3 rounded-full bg-surface-light overflow-hidden flex">
-                <div className="h-full rounded-l-full" style={{ width: `${(stats.soloChats / stats.totalChatsCreated) * 100}%`, background: "#8b5cf6" }} />
+                <div className="h-full rounded-l-full" style={{ width: `${(stats.soloChats / stats.totalChatsCreated) * 100}%`, background: "#3b82f6" }} />
                 <div className="h-full rounded-r-full" style={{ width: `${(stats.groupChats / stats.totalChatsCreated) * 100}%`, background: "#60a5fa" }} />
               </div>
               <div className="flex justify-between mt-1.5 text-xs text-muted">

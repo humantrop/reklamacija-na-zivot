@@ -95,7 +95,7 @@ export default function ChatWindow({
           <div className={`flex flex-col ${msg.isOwn ? "items-end" : "items-start"} max-w-[70%]`}>
             <span
               className="text-[11px] mb-0.5 font-medium"
-              style={{ color: msg.isOwn ? "#8b5cf6" : (msg.color || "#60a5fa") }}
+              style={{ color: msg.isOwn ? "#3b82f6" : (msg.color || "#60a5fa") }}
             >
               {msg.pseudonym}
             </span>

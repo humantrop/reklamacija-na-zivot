@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { ThumbsUp, Shield } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -23,6 +24,7 @@ export default function Navbar() {
           </span>
         </Link>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           {session ? (
             <>
               {role === "ADMIN" && (

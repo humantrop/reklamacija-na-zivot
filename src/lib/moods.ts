@@ -20,7 +20,7 @@ export const moods: Mood[] = [
   { id: "besan", label: "Besan/na", description: "Moram da ispušem", icon: Flame, color: "#ef4444", isListener: false },
   { id: "tuzan", label: "Tužan/na", description: "Treba mi neko", icon: CloudRain, color: "#3b82f6", isListener: false },
   { id: "prazan", label: "Prazan/na", description: "Ne osećam ništa", icon: Circle, color: "#64748b", isListener: false },
-  { id: "plakanje", label: "Hoću da se isplačem", description: "Samo pusti", icon: Droplets, color: "#8b5cf6", isListener: false },
+  { id: "plakanje", label: "Hoću da se isplačem", description: "Samo pusti", icon: Droplets, color: "#6366f1", isListener: false },
   { id: "slusam", label: "Hoću da saslušam", description: "Tu sam za tebe", icon: Ear, color: "#10b981", isListener: true },
 ];
 

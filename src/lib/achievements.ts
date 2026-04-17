@@ -14,7 +14,7 @@ export const achievements: Achievement[] = [
   { id: "beginner", name: "Početnik", icon: MessageCircle, requiredChats: 20, color: "#10b981" },
   { id: "social", name: "Društvenjak", icon: Star, requiredChats: 50, color: "#3b82f6" },
   { id: "veteran", name: "Veteran", icon: Trophy, requiredChats: 120, color: "#f59e0b" },
-  { id: "legend", name: "Legenda", icon: Crown, requiredChats: 250, color: "#8b5cf6" },
+  { id: "legend", name: "Legenda", icon: Crown, requiredChats: 250, color: "#3b82f6" },
   { id: "master", name: "Legendarni sagovornik", icon: Flame, requiredChats: 500, color: "#ef4444" },
 ];
 

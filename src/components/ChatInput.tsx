@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
+import { useTheme } from "./ThemeProvider";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
@@ -19,6 +20,7 @@ export default function ChatInput({
   onTyping,
   onStopTyping,
 }: ChatInputProps) {
+  const { theme } = useTheme();
   const [message, setMessage] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -77,7 +79,7 @@ export default function ChatInput({
         <div ref={emojiRef} className="absolute bottom-20 left-4 z-50">
           <EmojiPicker
             onEmojiClick={handleEmojiClick}
-            theme={"dark" as unknown as undefined}
+            theme={(theme === "dark" ? "dark" : "light") as unknown as undefined}
             width={320}
             height={400}
             searchPlaceholder="Pretraži emoji..."

@@ -132,7 +132,7 @@ function DashboardContent() {
                     { name: "Početnik", chats: "20+", color: "#10b981" },
                     { name: "Društvenjak", chats: "50+", color: "#3b82f6" },
                     { name: "Veteran", chats: "120+", color: "#f59e0b" },
-                    { name: "Legenda", chats: "250+", color: "#8b5cf6" },
+                    { name: "Legenda", chats: "250+", color: "#3b82f6" },
                     { name: "Legendarni sagovornik", chats: "500+", color: "#ef4444" },
                     { name: "Slušalac", chats: "ocena 4+ & 10+ razgovora", color: "#10b981" },
                   ].map((b) => (
@@ -308,7 +308,7 @@ function DashboardContent() {
               {stats.canListen && (
                 <button
                   onClick={() => router.push("/chat?mode=solo&mood=slusam&listener=1")}
-                  className="glow-button w-full group glass-card rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/40"
+                  className="w-full group glass-card rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/40"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0">
@@ -387,7 +387,7 @@ function DashboardContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 onClick={() => startChat("solo")}
-                className="glow-button group glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent/40"
+                className="group glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent/40"
               >
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Search className="w-6 h-6 text-accent" />
@@ -400,7 +400,7 @@ function DashboardContent() {
 
               <button
                 onClick={() => startChat("group")}
-                className="glow-button group glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/40"
+                className="group glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/40"
               >
                 <div className="w-12 h-12 rounded-xl bg-accent-blue/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="w-6 h-6 text-accent-blue" />
