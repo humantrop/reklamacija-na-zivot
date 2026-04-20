@@ -88,3 +88,30 @@ model CategoryStat {
   label      String
   usageCount Int    @default(0)
 }
+
+enum FeedbackCategory {
+  BUG
+  PREDLOG
+  POHVALA
+  OSTALO
+}
+
+model ChatFeedback {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  score     Int
+  tags      String[]
+  freeText  String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roomId])
+}
+
+model AppFeedback {
+  id        String           @id @default(cuid())
+  userId    String?
+  category  FeedbackCategory
+  message   String
+  createdAt DateTime         @default(now())
+}

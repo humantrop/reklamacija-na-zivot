@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import {
   Users, MessageCircle, Send, ShieldX, UserSearch, UsersRound, Star, Clock, AlertTriangle, CheckCircle, XCircle,
-  Flame, CloudRain, Circle, Droplets, Ear, MessageSquare,
+  Flame, CloudRain, Circle, Droplets, Ear, MessageSquare, MessageSquarePlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -24,6 +24,15 @@ const REASON_LABELS: Record<string, string> = {
 
 interface CategoryStatItem { id: string; label: string; count: number; }
 interface ReportItem { id: string; roomId: string; reporterId: string; reportedId: string; reason: string; description?: string; createdAt: string; }
+interface ChatFeedbackItem { id: string; roomId: string; userId: string; score: number; tags: string[]; freeText?: string; createdAt: string; }
+interface AppFeedbackItem { id: string; userId?: string; category: string; message: string; createdAt: string; }
+
+const FEEDBACK_CATEGORY_LABELS: Record<string, string> = {
+  BUG: "Bug", PREDLOG: "Predlog", POHVALA: "Pohvala", OSTALO: "Ostalo",
+};
+const FEEDBACK_CATEGORY_COLORS: Record<string, string> = {
+  BUG: "#ef4444", PREDLOG: "#3b82f6", POHVALA: "#10b981", OSTALO: "#64748b",
+};
 interface AdminStats {
   totalUsers: number; totalChatsCreated: number; totalMessages: number;
   soloChats: number; groupChats: number; avgChatDuration: number;
@@ -43,6 +52,8 @@ export default function AdminPage() {
   const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
+  const [chatFeedback, setChatFeedback] = useState<ChatFeedbackItem[]>([]);
+  const [appFeedback, setAppFeedback] = useState<AppFeedbackItem[]>([]);
   const [error, setError] = useState("");
 
   const fetchStats = useCallback(async () => {
@@ -55,6 +66,15 @@ export default function AdminPage() {
   const fetchReports = useCallback(async () => {
     const res = await fetch("/api/admin/reports");
     if (res.ok) { const data = await res.json(); setReports(data.reports || []); }
+  }, []);
+
+  const fetchFeedback = useCallback(async () => {
+    const res = await fetch("/api/admin/feedback");
+    if (res.ok) {
+      const data = await res.json();
+      setChatFeedback(data.chatFeedback || []);
+      setAppFeedback(data.appFeedback || []);
+    }
   }, []);
 
   const handleReport = useCallback(async (id: string, action: "RESOLVED" | "DISMISSED") => {
@@ -71,10 +91,11 @@ export default function AdminPage() {
     if (status === "authenticated") {
       fetchStats();
       fetchReports();
-      const interval = setInterval(() => { fetchStats(); fetchReports(); }, 10000);
+      fetchFeedback();
+      const interval = setInterval(() => { fetchStats(); fetchReports(); fetchFeedback(); }, 10000);
       return () => clearInterval(interval);
     }
-  }, [status, router, fetchStats, fetchReports]);
+  }, [status, router, fetchStats, fetchReports, fetchFeedback]);
 
   if (status === "loading") return <div className="flex flex-1 items-center justify-center"><div className="text-muted animate-pulse">Učitavanje...</div></div>;
 
@@ -181,6 +202,84 @@ export default function AdminPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        {/* App Feedback */}
+        <div className="glass-card rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <MessageSquarePlus className="w-5 h-5 text-accent" /> Povratne informacije
+            </h2>
+            {appFeedback.length > 0 && (
+              <span className="text-xs bg-accent/10 text-accent rounded-full px-2.5 py-0.5 font-medium">{appFeedback.length}</span>
+            )}
+          </div>
+          {appFeedback.length === 0 ? (
+            <p className="text-muted text-sm">Nema povratnih informacija.</p>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {appFeedback.map((fb) => (
+                <div key={fb.id} className="rounded-xl bg-surface/50 p-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span
+                      className="text-xs font-medium rounded px-1.5 py-0.5"
+                      style={{
+                        backgroundColor: `${FEEDBACK_CATEGORY_COLORS[fb.category] || "#64748b"}15`,
+                        color: FEEDBACK_CATEGORY_COLORS[fb.category] || "#64748b",
+                      }}
+                    >
+                      {FEEDBACK_CATEGORY_LABELS[fb.category] || fb.category}
+                    </span>
+                    <span className="text-[10px] text-muted">
+                      {new Date(fb.createdAt).toLocaleDateString("sr-RS")} {new Date(fb.createdAt).toLocaleTimeString("sr-RS", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    {fb.userId && <span className="text-[10px] text-muted/50">Korisnik: {fb.userId.slice(0, 8)}...</span>}
+                  </div>
+                  <p className="text-sm text-foreground">{fb.message}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Chat Feedback */}
+        <div className="glass-card rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-accent-blue" /> Feedback iz chatova
+            </h2>
+            {chatFeedback.length > 0 && (
+              <span className="text-xs bg-accent-blue/10 text-accent-blue rounded-full px-2.5 py-0.5 font-medium">{chatFeedback.length}</span>
+            )}
+          </div>
+          {chatFeedback.length === 0 ? (
+            <p className="text-muted text-sm">Nema feedback-a iz chatova.</p>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {chatFeedback.map((fb) => (
+                <div key={fb.id} className="rounded-xl bg-surface/50 p-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star key={s} className="w-3 h-3" fill={s <= fb.score ? "#f59e0b" : "transparent"} color={s <= fb.score ? "#f59e0b" : "#64748b"} />
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-muted">
+                      {new Date(fb.createdAt).toLocaleDateString("sr-RS")} {new Date(fb.createdAt).toLocaleTimeString("sr-RS", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  {fb.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {fb.tags.map((tag) => (
+                        <span key={tag} className="text-[10px] bg-accent-blue/10 text-accent-blue rounded px-1.5 py-0.5">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                  {fb.freeText && <p className="text-sm text-muted">{fb.freeText}</p>}
+                </div>
+              ))}
             </div>
           )}
         </div>

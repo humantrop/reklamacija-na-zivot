@@ -790,6 +790,29 @@ export function initializeSocket(io: SocketIOServer) {
       socket.emit("rating-submitted");
     });
 
+    // --- Chat Feedback (tags + free text after rating) ---
+    socket.on("submit-chat-feedback", async (data: { roomId: string; score: number; tags?: string[]; freeText?: string }) => {
+      const { roomId, score, tags, freeText } = data;
+      if (score < 1 || score > 5) return;
+      if (tags && (!Array.isArray(tags) || tags.length > 5)) return;
+      if (freeText && (typeof freeText !== "string" || freeText.length > 200)) return;
+
+      let users = activeRooms.get(roomId)?.users || completedRooms.get(roomId);
+      if (!users) return;
+      const user = users.find((u) => u.socketId === socket.id);
+      if (!user) return;
+
+      try {
+        await prisma.chatFeedback.upsert({
+          where: { userId_roomId: { userId: user.userId, roomId } },
+          create: { roomId, userId: user.userId, score, tags: tags || [], freeText: freeText?.slice(0, 200) },
+          update: { tags: tags || [], freeText: freeText?.slice(0, 200) },
+        });
+      } catch (e) {
+        console.error("Failed to save chat feedback:", e);
+      }
+    });
+
     // --- Report User ---
     socket.on("report-user", async (data: { roomId: string; reason: string; description?: string }) => {
       const { roomId, reason, description } = data;

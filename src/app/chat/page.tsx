@@ -346,8 +346,13 @@ function ChatContent() {
     socket.emit("find-match", { mode, mood });
   }, [socket, mode, mood]);
 
-  const submitRating = useCallback((score: number) => {
-    if (socket && roomIdRef.current) socket.emit("submit-rating", { roomId: roomIdRef.current, score });
+  const submitRating = useCallback((score: number, tags?: string[], freeText?: string) => {
+    if (socket && roomIdRef.current) {
+      socket.emit("submit-rating", { roomId: roomIdRef.current, score });
+      if (tags?.length || freeText) {
+        socket.emit("submit-chat-feedback", { roomId: roomIdRef.current, score, tags, freeText });
+      }
+    }
     setRatingDone(true);
     setShowRating(false);
   }, [socket]);

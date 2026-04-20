@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles, Ear, HelpCircle, X, Star, Shield, Clock, Heart, Flame, Handshake, Infinity, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Users, EyeOff, Lock, Link2, UserPlus, Sparkles, Ear, HelpCircle, X, Star, Shield, Clock, Heart, Flame, Handshake, Infinity, Trash2, AlertTriangle, Zap } from "lucide-react";
 import { signOut } from "next-auth/react";
 import MoodPicker from "@/components/MoodPicker";
 import AchievementToast from "@/components/AchievementToast";
@@ -384,7 +384,18 @@ function DashboardContent() {
             </div>
 
             {/* 2. Chat buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className={`relative grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl transition-all duration-500 ${
+              useMoodMatch && selectedMood
+                ? "ring-2 ring-accent/30 animate-glow-pulse p-1"
+                : ""
+            }`}>
+              {useMoodMatch && selectedMood && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 animate-slide-up">
+                  <span className="glass-card rounded-full px-3 py-1 text-xs text-accent font-medium inline-flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> Izaberi razgovor
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => startChat("solo")}
                 className="group glass-card rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent/40"

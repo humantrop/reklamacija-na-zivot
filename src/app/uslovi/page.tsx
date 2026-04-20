@@ -98,9 +98,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-3">9. Besplatno korišćenje</h2>
             <p>
-              Aplikacija je trenutno besplatna. Zadržavamo pravo da u budućnosti uvedemo
-              plaćene funkcionalnosti, o čemu ćemo blagovremeno obavestiti korisnike.
-              Osnovne funkcionalnosti će ostati besplatne.
+              Aplikacija je besplatna za korišćenje.
             </p>
           </section>
 
