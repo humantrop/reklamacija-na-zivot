@@ -104,7 +104,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold text-foreground mb-3">9. Kontakt</h2>
             <p>
               Za sva pitanja u vezi sa privatnošću, obrati se na:{" "}
-              <span className="text-accent font-medium">reklamacija.na.zivot@gmail.com</span>
+              <span className="text-accent font-medium">info@svecebitiok.rs</span>
             </p>
           </section>
         </div>
